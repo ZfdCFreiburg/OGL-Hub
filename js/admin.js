@@ -1,4 +1,4 @@
-import { CONFIG } from "../config.js";
+import { CONFIG } from "../config.js?v=14";
 
 const { owner, repo, branch, allowedUsers, allowedEmails, supabaseFunctionName } = CONFIG.admin;
 const STORAGE_KEY = "ogl-admin-token";
