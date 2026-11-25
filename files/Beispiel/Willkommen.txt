@@ -1,6 +1,0 @@
-Willkommen bei OGL Hub!
-
-So fügst du neue Dateien hinzu:
-1. Lade deine Dateien in den Ordner `files/` (gerne auch in Unterordner wie `files/Dokumente/` oder `files/Vorlagen/`) hoch.
-2. GitHub Actions aktualisiert die Plattform automatisch innerhalb von ca. 30 Sekunden.
-3. Diese Beispieldatei kannst du danach einfach löschen.
