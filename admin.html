@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OGL Hub Admin</title>
   <link rel="icon" type="image/png" href="./assets/favicon.png" />
-  <link rel="stylesheet" href="./css/style.css?v=15" />
+  <link rel="stylesheet" href="./css/style.css?v=25" />
 </head>
 <body>
   <div class="app-shell">
     <header class="site-header">
-      <div class="container header-inner">
+      <div class="header-inner">
         <div class="brand">
           <div id="brand-logo" class="brand-logo" aria-hidden="true"></div>
         </div>
@@ -78,7 +78,7 @@
             <form id="config-form" class="stack-form">
               <label class="field-label">
                 Überschrift der Download-Seite
-                <input id="cfg-page-title" type="text" class="search-input" placeholder="z. B. Workshop Digital Independence" />
+                <input id="cfg-page-title" type="text" class="search-input" placeholder="z. B. Workshop Digital Independence" required />
               </label>
               <label class="field-label">
                 Workshop-Code
@@ -89,10 +89,13 @@
                 <input id="cfg-leader" type="text" class="search-input" placeholder="z. B. Max Mustermann" />
               </label>
               <label class="field-label">
-                Beschreibung
+                Beschreibung (optional)
                 <textarea id="cfg-description" class="search-input" rows="3" placeholder="Kurzer Hinweistext unter der Überschrift"></textarea>
               </label>
-              <button id="save-config-btn" class="btn btn-primary" type="submit">Speichern</button>
+              <div class="btn-row">
+                <button id="save-config-btn" class="btn btn-primary btn-compact" type="submit" disabled>Speichern</button>
+                <button id="show-qr-btn" class="btn btn-secondary" type="button" disabled>QR-Code</button>
+              </div>
             </form>
           </div>
 
@@ -131,7 +134,7 @@
                 </div>
               </div>
 
-              <button id="upload-btn" class="btn btn-primary" type="submit" disabled>Hochladen</button>
+              <button id="upload-btn" class="btn btn-primary btn-compact" type="submit" disabled>Hochladen</button>
             </form>
           </div>
         </div>
@@ -159,6 +162,10 @@
               <button id="clear-chat-btn" class="btn btn-danger" type="button">Alle löschen</button>
             </div>
           </div>
+          <form id="pin-form" class="pin-form">
+            <input id="cfg-pinned-msg" type="text" class="search-input" placeholder="Angepinnte Nachricht im Chat (optional, z. B. WLAN / Link)" maxlength="300" />
+            <button id="save-pin-btn" class="btn btn-secondary" type="submit">Anpinnen</button>
+          </form>
           <div id="admin-chat-list" class="admin-file-list"></div>
         </div>
       </section>
@@ -167,6 +174,6 @@
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/admin.js?v=16"></script>
+  <script type="module" src="./js/admin.js?v=28"></script>
 </body>
 </html>

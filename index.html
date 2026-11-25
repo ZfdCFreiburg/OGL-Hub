@@ -1,23 +1,38 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OGL Hub — Dateiaustausch</title>
   <link rel="icon" type="image/png" href="./assets/favicon.png" />
-  <link rel="stylesheet" href="./css/style.css?v=15" />
+  <link rel="stylesheet" href="./css/style.css?v=26" />
 </head>
+
 <body>
   <div class="app-shell">
     <header class="site-header">
-      <div class="container header-inner">
+      <div class="header-inner">
         <div class="brand">
           <div id="brand-logo" class="brand-logo" aria-hidden="true"></div>
           <p id="brand-tagline" class="brand-tagline hidden"></p>
         </div>
         <h2 id="page-title" class="header-page-title hidden"></h2>
         <div class="header-actions">
-          <span id="workshop-leader" class="hero-leader hidden"></span>
+          <div id="workshop-leader" class="leader-badge hidden" title="Workshopleitung">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z" />
+              <path d="M6 12v5c3 3 9 3 12 0v-5" />
+            </svg>
+            <span id="workshop-leader-name"></span>
+          </div>
+          <button id="leave-room-btn" class="icon-btn btn-pastel-red hidden" type="button" title="Raum verlassen" aria-label="Raum verlassen">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+          </button>
         </div>
       </div>
     </header>
@@ -25,17 +40,22 @@
     <main class="container main-content">
       <!-- Workshop-Code-Sperre -->
       <section id="portal-gate" class="admin-card login-card hidden">
-        <h2>Workshop-Code erforderlich</h2>
+        <div class="gate-header">
+          <h2>Workshop-Code erforderlich</h2>
+          <div id="gate-indicator" class="gate-indicator" aria-hidden="true">
+            <span id="gate-led" class="gate-led"></span>
+            <svg id="gate-check" class="gate-check hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+              <path class="gate-check-path" d="M5 13l4 4L19 7" />
+            </svg>
+            <svg id="gate-cross" class="gate-cross hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 7l10 10M17 7L7 17" />
+            </svg>
+          </div>
+        </div>
         <p class="muted-text">Bitte gib den Workshop-Code ein, um Dateien und Chat zu öffnen.</p>
         <form id="portal-gate-form" class="stack-form">
-          <input
-            id="portal-code-input"
-            type="password"
-            class="search-input"
-            placeholder="Workshop-Code"
-            autocomplete="off"
-            required
-          />
+          <input id="portal-code-input" type="password" class="search-input" placeholder="Workshop-Code"
+            autocomplete="off" required />
           <div id="portal-gate-error" class="alert-error hidden"></div>
           <button id="portal-gate-btn" class="btn btn-primary" type="submit">Freischalten</button>
         </form>
@@ -54,13 +74,8 @@
 
         <section class="controls" aria-label="Suche und Filter">
           <div class="search-wrap">
-            <input
-              id="search-input"
-              type="search"
-              class="search-input"
-              placeholder="Dateien durchsuchen (Name, Ordner, Typ)..."
-              autocomplete="off"
-            />
+            <input id="search-input" type="search" class="search-input"
+              placeholder="Dateien durchsuchen (Name, Ordner, Typ)..." autocomplete="off" />
           </div>
           <div class="filter-row">
             <div id="category-pills" class="pill-group" role="tablist" aria-label="Ordner"></div>
@@ -91,7 +106,8 @@
       <div class="footer-inner">
         <div class="footer-left">
           <a href="./admin.html" class="footer-login-link" title="OGL Hub Admin" aria-label="OGL Hub Admin">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
               <polyline points="17 8 12 3 7 8" />
               <line x1="12" y1="3" x2="12" y2="15" />
@@ -107,30 +123,13 @@
     </footer>
   </div>
 
-  <!-- Vorschau-Modal -->
-  <div id="preview-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="preview-title">
-    <div class="modal-backdrop" data-close-modal></div>
-    <div class="modal-card">
-      <div class="modal-header">
-        <div>
-          <h2 id="preview-title" class="modal-title">Vorschau</h2>
-          <p id="preview-meta" class="modal-meta"></p>
-        </div>
-        <div class="modal-actions">
-          <a id="preview-download" class="btn btn-primary" download>Herunterladen</a>
-          <button class="icon-btn" type="button" data-close-modal aria-label="Schließen">✕</button>
-        </div>
-      </div>
-      <div id="preview-body" class="modal-body"></div>
-    </div>
-  </div>
-
   <!-- Aufklappbares Chat-Widget unten rechts (Supabase Realtime) -->
   <aside id="chat-widget" class="chat-widget collapsed hidden" aria-label="Chat">
     <button id="chat-bar" class="chat-bar" type="button" aria-expanded="false">
       <span class="chat-bar-left">
         <span id="chat-online-dot" class="chat-dot" title="Verbindungsstatus"></span>
         <span id="chat-title" class="chat-bar-title">OGL Chat</span>
+        <span id="chat-presence" class="chat-presence hidden" title="Gerade online"></span>
         <span id="chat-count" class="chat-count hidden">0</span>
       </span>
       <span id="chat-chevron" class="chat-chevron" aria-hidden="true">▲</span>
@@ -140,14 +139,8 @@
       <!-- Namensabfrage vor Teilnahme -->
       <form id="chat-join-form" class="chat-join-box">
         <p class="chat-join-text">Gib deinen Namen ein, um am Chat teilzunehmen:</p>
-        <input
-          id="chat-join-name"
-          type="text"
-          class="chat-author-input"
-          placeholder="Dein Name"
-          maxlength="40"
-          required
-        />
+        <input id="chat-join-name" type="text" class="chat-author-input" placeholder="Dein Name" maxlength="40"
+          required />
         <div id="chat-join-error" class="alert-error hidden"></div>
         <button id="chat-join-btn" class="btn btn-primary" type="submit">Teilnehmen</button>
       </form>
@@ -161,17 +154,13 @@
             <button id="chat-change-name" class="chat-link-btn" type="button">Name ändern</button>
           </div>
         </div>
+        <div id="chat-pinned" class="chat-pinned hidden"></div>
         <div id="chat-messages" class="chat-messages"></div>
+        <div id="chat-inline-notice" class="chat-inline-notice hidden"></div>
         <form id="chat-form" class="chat-form">
           <div class="chat-input-row">
-            <input
-              id="chat-input"
-              type="text"
-              class="chat-text-input"
-              placeholder="Nachricht schreiben..."
-              maxlength="1000"
-              required
-            />
+            <input id="chat-input" type="text" class="chat-text-input" placeholder="Nachricht schreiben..."
+              maxlength="1000" required />
             <button class="btn btn-primary" type="submit">Senden</button>
           </div>
         </form>
@@ -181,6 +170,7 @@
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/app.js?v=15"></script>
+  <script type="module" src="./js/app.js?v=26"></script>
 </body>
+
 </html>

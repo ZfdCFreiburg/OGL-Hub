@@ -8,6 +8,7 @@ const state = {
   token: "",
   supabaseClient: null,
   configSha: null,
+  savedConfigSnapshot: "",
   selectedFiles: [],
   repoSizeBytes: 0,
 };
@@ -29,7 +30,11 @@ const el = {
   cfgLeader: document.getElementById("cfg-leader"),
   cfgDescription: document.getElementById("cfg-description"),
   saveConfigBtn: document.getElementById("save-config-btn"),
+  showQrBtn: document.getElementById("show-qr-btn"),
   cfgChatCode: document.getElementById("cfg-chat-code"),
+  pinForm: document.getElementById("pin-form"),
+  cfgPinnedMsg: document.getElementById("cfg-pinned-msg"),
+  savePinBtn: document.getElementById("save-pin-btn"),
   uploadForm: document.getElementById("upload-form"),
   uploadFolder: document.getElementById("upload-folder"),
   folderSuggestions: document.getElementById("folder-suggestions"),
@@ -81,24 +86,6 @@ function clearLoginError() {
   el.loginError.textContent = "";
 }
 
-async function ghRequest(path, options = {}) {
-  const res = await fetch(`https://api.github.com${path}`, {
-    ...options,
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${state.token}`,
-      "X-GitHub-Api-Version": "2022-11-28",
-      ...(options.headers || {}),
-    },
-  });
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : null;
-  if (!res.ok) {
-    throw new Error(data?.message || `GitHub API Fehler (${res.status})`);
-  }
-  return data;
-}
-
 async function invokeSupabaseAdmin(payload) {
   const { data, error } = await state.supabaseClient.functions.invoke(
     supabaseFunctionName || "github-admin",
@@ -109,35 +96,21 @@ async function invokeSupabaseAdmin(payload) {
   return data;
 }
 
-function encodePath(filePath) {
-  return filePath.split("/").map(encodeURIComponent).join("/");
-}
-
-function textToBase64(str) {
-  const bytes = new TextEncoder().encode(str);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-  }
-  return btoa(binary);
-}
-
-function base64ToText(b64) {
-  const binary = atob(b64.replace(/\n/g, ""));
-  const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
-}
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result || "");
-      resolve(result.split(",")[1] || "");
-    };
-    reader.onerror = () => reject(new Error(`Datei ${file.name} konnte nicht gelesen werden`));
-    reader.readAsDataURL(file);
+function currentConfigSnapshot() {
+  return JSON.stringify({
+    t: el.cfgPageTitle.value.trim(),
+    c: el.cfgChatCode.value.trim(),
+    l: el.cfgLeader.value.trim(),
+    d: el.cfgDescription.value.trim(),
   });
+}
+
+function updateSaveConfigState() {
+  const title = el.cfgPageTitle.value.trim();
+  const code = el.cfgChatCode.value.trim();
+  el.saveConfigBtn.disabled = !title || !code;
+  const isSaved = currentConfigSnapshot() === state.savedConfigSnapshot && Boolean(title) && Boolean(code);
+  el.showQrBtn.disabled = !isSaved;
 }
 
 async function openDashboard() {
@@ -145,6 +118,8 @@ async function openDashboard() {
   el.dashboardSection.classList.remove("hidden");
   el.logoutBtn.classList.remove("hidden");
   await Promise.all([loadSiteConfig(), loadRepoFiles(), loadChatCode(), loadAdminChatMessages()]);
+  state.savedConfigSnapshot = currentConfigSnapshot();
+  updateSaveConfigState();
 }
 
 async function broadcastChatEvent(event, payload = {}) {
@@ -200,6 +175,27 @@ async function loadAdminChatMessages() {
         });
         info.append(author, text, time);
 
+        const pinBtn = document.createElement("button");
+        pinBtn.type = "button";
+        pinBtn.className = "btn btn-secondary";
+        pinBtn.style.padding = "6px 10px";
+        pinBtn.style.fontSize = "0.82rem";
+        pinBtn.textContent = "Anpinnen";
+        pinBtn.addEventListener("click", async () => {
+          const pinnedText = `${msg.author}: ${msg.content}`.slice(0, 300);
+          el.cfgPinnedMsg.value = pinnedText;
+          const { error: pinErr } = await state.supabaseClient
+            .from("chat_settings")
+            .update({ pinned_message: pinnedText, updated_at: new Date().toISOString() })
+            .eq("room", room);
+          if (pinErr) {
+            showToast(`Fehler: ${pinErr.message}`);
+            return;
+          }
+          await broadcastChatEvent("pinned_updated", { text: pinnedText });
+          showToast("Nachricht angepinnt");
+        });
+
         const delBtn = document.createElement("button");
         delBtn.type = "button";
         delBtn.className = "btn btn-danger";
@@ -220,7 +216,11 @@ async function loadAdminChatMessages() {
           await loadAdminChatMessages();
         });
 
-        row.append(info, delBtn);
+        const btnGroup = document.createElement("div");
+        btnGroup.className = "header-actions";
+        btnGroup.append(pinBtn, delBtn);
+
+        row.append(info, btnGroup);
         return row;
       })
     );
@@ -254,15 +254,145 @@ async function loadChatCode() {
   try {
     const { data, error } = await state.supabaseClient
       .from("chat_settings")
-      .select("workshop_code")
+      .select("workshop_code, pinned_message")
       .eq("room", CONFIG.supabase.roomName || "general")
       .maybeSingle();
     if (!error && data) {
       el.cfgChatCode.value = data.workshop_code || "";
+      el.cfgPinnedMsg.value = data.pinned_message || "";
     }
   } catch {
     // ignore
   }
+}
+
+async function savePinnedMessage(e) {
+  e.preventDefault();
+  if (!state.supabaseClient) return;
+  el.savePinBtn.disabled = true;
+  try {
+    const room = CONFIG.supabase.roomName || "general";
+    const text = el.cfgPinnedMsg.value.trim();
+    const { error } = await state.supabaseClient
+      .from("chat_settings")
+      .update({ pinned_message: text, updated_at: new Date().toISOString() })
+      .eq("room", room);
+    if (error) throw error;
+    await broadcastChatEvent("pinned_updated", { text });
+    showToast(text ? "Nachricht angepinnt" : "Pin entfernt");
+  } catch (err) {
+    showToast(`Fehler: ${err.message}`);
+  } finally {
+    el.savePinBtn.disabled = false;
+  }
+}
+
+async function openQrTab() {
+  const code = el.cfgChatCode.value.trim();
+  if (!code) {
+    showToast("Bitte zuerst einen Workshop-Code eingeben");
+    return;
+  }
+
+  const baseUrl = window.location.href.replace(/admin\.html.*$/, "");
+  const shareUrl = `${baseUrl}?code=${encodeURIComponent(code)}`;
+  const title = el.cfgPageTitle.value.trim() || CONFIG.branding.name;
+  const logoAbsUrl = new URL(CONFIG.branding.logoUrl || "./assets/ogl-logo.png", window.location.href).href;
+
+  const win = window.open("", "_blank");
+  if (!win) {
+    showToast("Pop-up blockiert – bitte Pop-ups für diese Seite erlauben");
+    return;
+  }
+
+  let svg = "";
+  try {
+    const QRCode = (await import("https://esm.sh/qrcode@1.5.4")).default;
+    svg = await QRCode.toString(shareUrl, { type: "svg", width: 340, margin: 1 });
+  } catch {
+    svg = "<p>QR-Code konnte nicht erzeugt werden.</p>";
+  }
+
+  const escape = (s) =>
+    String(s).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+
+  win.document.open();
+  win.document.write(`<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QR-Code — ${escape(title)}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 32px;
+      background: #f8fafc;
+      color: #0f172a;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      padding: 40px 48px;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 20px;
+      max-width: 520px;
+      width: 100%;
+    }
+    .logo {
+      height: 72px;
+      width: auto;
+      object-fit: contain;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.6rem;
+      letter-spacing: -0.02em;
+    }
+    .qr svg {
+      display: block;
+      width: 300px;
+      height: 300px;
+    }
+    .code-pill {
+      padding: 10px 22px;
+      border-radius: 999px;
+      background: #f3e8ff;
+      color: #5b21b6;
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+    }
+    .url {
+      margin: 0;
+      font-size: 0.85rem;
+      color: #64748b;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <img class="logo" src="${escape(logoAbsUrl)}" alt="OGL Logo" />
+    <h1>${escape(title)}</h1>
+    <div class="qr">${svg}</div>
+    <div class="code-pill">Code: ${escape(code)}</div>
+    <p class="url" style="font-size: 0.92rem; color: #334155;">Code wird beim Scannen automatisch übernommen.</p>
+    <p class="url">${escape(shareUrl)}</p>
+  </main>
+</body>
+</html>`);
+  win.document.close();
 }
 
 async function saveSiteConfig(e) {
@@ -296,12 +426,13 @@ async function saveSiteConfig(e) {
     ]);
     if (siteRes.error) throw siteRes.error;
     if (codeRes.error) throw codeRes.error;
+    state.savedConfigSnapshot = currentConfigSnapshot();
     showToast("Workshop-Infos & Code gespeichert");
   } catch (err) {
     showToast(`Fehler: ${err.message}`);
   } finally {
-    el.saveConfigBtn.disabled = false;
     el.saveConfigBtn.textContent = "Speichern";
+    updateSaveConfigState();
   }
 }
 
@@ -375,45 +506,6 @@ async function loginWithSupabase(email, password) {
   } finally {
     el.supabaseLoginSubmit.disabled = false;
     el.supabaseLoginSubmit.textContent = "Anmelden";
-  }
-}
-
-async function authenticateWithToken(token, persist) {
-  clearLoginError();
-  el.loginSubmit.disabled = true;
-  el.loginSubmit.textContent = "Prüfe Zugang...";
-  state.token = token.trim();
-
-  try {
-    const user = await ghRequest("/user");
-    const allowed = allowedUsers.map((u) => u.toLowerCase());
-    if (!allowed.includes((user.login || "").toLowerCase())) {
-      throw new Error(`Zugriff verweigert: Account "${user.login}" ist nicht freigegeben.`);
-    }
-
-    const repoData = await ghRequest(`/repos/${owner}/${repo}`);
-    if (!repoData.permissions?.push) {
-      throw new Error(`Token hat keine Schreibrechte (Contents: Read and write) für ${owner}/${repo}.`);
-    }
-    state.repoSizeBytes = (repoData.size || 0) * 1024;
-    state.mode = "token";
-
-    if (persist) {
-      localStorage.setItem(STORAGE_KEY, state.token);
-    } else {
-      sessionStorage.setItem(STORAGE_KEY, state.token);
-    }
-
-    await openDashboard(user.login);
-  } catch (err) {
-    state.token = "";
-    state.mode = null;
-    localStorage.removeItem(STORAGE_KEY);
-    sessionStorage.removeItem(STORAGE_KEY);
-    showLoginError(err.message);
-  } finally {
-    el.loginSubmit.disabled = false;
-    el.loginSubmit.textContent = "Mit Token anmelden";
   }
 }
 
@@ -525,6 +617,7 @@ async function deleteRepoFile(filePath, assetId, btn) {
   btn.textContent = "Lösche...";
   try {
     await invokeSupabaseAdmin({ action: "deleteReleaseAsset", assetId });
+    await broadcastChatEvent("files_updated");
     showToast("Datei gelöscht");
     await loadRepoFiles();
   } catch (err) {
@@ -706,6 +799,7 @@ async function uploadFiles(e) {
     el.uploadProgressFill.style.width = "100%";
     el.uploadProgressFill.classList.add("done");
 
+    await broadcastChatEvent("files_updated");
     showToast(`${uploaded} Datei(en) sind jetzt live`);
     el.fileInput.value = "";
     setSelectedFiles([]);
@@ -751,6 +845,11 @@ function bindEvents() {
   });
 
   el.configForm.addEventListener("submit", saveSiteConfig);
+  el.pinForm.addEventListener("submit", savePinnedMessage);
+  el.showQrBtn.addEventListener("click", openQrTab);
+  [el.cfgPageTitle, el.cfgChatCode, el.cfgLeader, el.cfgDescription].forEach((input) => {
+    input.addEventListener("input", updateSaveConfigState);
+  });
   el.uploadForm.addEventListener("submit", uploadFiles);
   el.refreshFilesBtn.addEventListener("click", loadRepoFiles);
   el.refreshChatBtn.addEventListener("click", loadAdminChatMessages);
@@ -781,13 +880,4 @@ function bindEvents() {
 
 initHeaderBranding();
 bindEvents();
-
-(async () => {
-  await initSupabaseAuth();
-  if (!state.mode) {
-    const savedToken = localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY);
-    if (savedToken) {
-      await authenticateWithToken(savedToken, Boolean(localStorage.getItem(STORAGE_KEY)));
-    }
-  }
-})();
+initSupabaseAuth();

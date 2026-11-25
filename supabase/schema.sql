@@ -42,12 +42,15 @@ create policy "Admin darf aus hub-files löschen"
     )
   );
 
--- 2. Chat-Einstellungen (Workshop-Code, nur für Admin les- und schreibbar)
+-- 2. Chat-Einstellungen (Workshop-Code & angepinnte Nachricht, nur für Admin schreibbar)
 create table if not exists public.chat_settings (
   room text primary key default 'general',
   workshop_code text not null default '',
+  pinned_message text not null default '',
   updated_at timestamptz not null default now()
 );
+
+alter table public.chat_settings add column if not exists pinned_message text not null default '';
 
 insert into public.chat_settings (room, workshop_code)
 values ('general', '')
@@ -78,10 +81,12 @@ create table if not exists public.chat_messages (
   author text not null check (char_length(author) between 1 and 40),
   content text not null check (char_length(content) between 1 and 1000),
   color text not null default '',
+  is_admin boolean not null default false,
   created_at timestamptz not null default now()
 );
 
 alter table public.chat_messages add column if not exists color text not null default '';
+alter table public.chat_messages add column if not exists is_admin boolean not null default false;
 
 create index if not exists idx_chat_messages_room_created
   on public.chat_messages (room, created_at desc);
@@ -109,8 +114,14 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_pinned text;
 begin
-  return jsonb_build_object('code_required', true);
+  select pinned_message into v_pinned from public.chat_settings where room = p_room;
+  return jsonb_build_object(
+    'code_required', true,
+    'pinned_message', coalesce(v_pinned, '')
+  );
 end;
 $$;
 
@@ -158,12 +169,18 @@ declare
   v_last_author_at timestamptz;
   v_last_content text;
   v_recent_room_count int;
+  v_is_admin boolean := false;
   v_row public.chat_messages;
 begin
   select workshop_code into v_code from public.chat_settings where room = p_room;
   if coalesce(v_code, '') = '' or coalesce(p_code, '') <> v_code then
     raise exception 'Falscher Workshop-Code';
   end if;
+
+  v_is_admin := (
+    lower(coalesce(auth.jwt() ->> 'email', '')) = 'zfdc@janboelmann.de'
+    or lower(coalesce(auth.jwt() -> 'user_metadata' ->> 'user_name', '')) = 'zfdcfreiburg'
+  );
 
   if char_length(v_author) < 1 or char_length(v_author) > 40 then
     raise exception 'Ungültiger Name';
@@ -204,8 +221,8 @@ begin
     raise exception 'Zu viele Nachrichten im Chat – bitte kurz warten';
   end if;
 
-  insert into public.chat_messages (room, author, content, color)
-  values (p_room, v_author, v_content, v_color)
+  insert into public.chat_messages (room, author, content, color, is_admin)
+  values (p_room, v_author, v_content, v_color, v_is_admin)
   returning * into v_row;
 
   return v_row;

@@ -56,12 +56,13 @@ body {
 }
 
 .header-inner {
+  width: 100%;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 16px;
   min-height: 72px;
-  padding: 6px 0;
+  padding: 6px 24px;
 }
 
 .brand {
@@ -83,8 +84,21 @@ body {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
   justify-self: end;
+}
+
+.leader-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #374151;
 }
 
 @media (max-width: 720px) {
@@ -191,6 +205,124 @@ body {
   opacity: 0.45;
   cursor: not-allowed;
   pointer-events: none;
+}
+
+.btn-compact {
+  align-self: flex-start;
+  min-width: 140px;
+}
+
+.btn-pastel-red {
+  background: #ffe4e6;
+  border-color: #fecdd3;
+  color: #be123c;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+}
+
+.btn-pastel-red:hover {
+  background: #fecdd3;
+  border-color: #fda4af;
+}
+
+/* Portal Gate 4-LED Status & Check Animation */
+.gate-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.gate-header h2 {
+  margin: 0;
+}
+
+.gate-indicator {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--surface-alt);
+  border: 1.5px solid var(--border);
+  flex-shrink: 0;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.gate-led {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  transition: background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.gate-indicator.verifying {
+  border-color: var(--accent);
+}
+
+.gate-indicator.verifying .gate-led {
+  animation: led-scan 0.65s infinite ease-in-out;
+}
+
+.gate-indicator.success {
+  background: #dcfce7;
+  border-color: #16a34a;
+  box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.15);
+}
+
+.gate-indicator.success .gate-led,
+.gate-indicator.error .gate-led {
+  display: none;
+}
+
+.gate-indicator.error {
+  background: #ffe4e6;
+  border-color: #dc2626;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.14);
+}
+
+.gate-check,
+.gate-cross {
+  width: 16px;
+  height: 16px;
+}
+
+.gate-check {
+  color: #16a34a;
+}
+
+.gate-cross {
+  color: #dc2626;
+}
+
+.gate-check-path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: draw-check 0.34s cubic-bezier(0.22, 1, 0.36, 1) 0.18s forwards;
+}
+
+.gate-shake {
+  animation: gate-shake 0.34s ease;
+}
+
+@keyframes led-scan {
+  0%, 100% { background: #cbd5e1; transform: scale(1); }
+  50% { background: var(--accent); box-shadow: 0 0 6px color-mix(in srgb, var(--accent) 45%, transparent); transform: scale(1.15); }
+}
+
+@keyframes draw-check {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes gate-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-3px); }
 }
 
 .btn-secondary {
@@ -796,8 +928,128 @@ body {
 }
 
 .chat-msg-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-weight: 600;
   color: var(--text);
+}
+
+.chat-msg a {
+  color: var(--accent);
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.pin-form {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.pin-form .search-input {
+  flex: 1;
+}
+
+.qr-modal-card {
+  max-width: 440px;
+}
+
+.qr-modal-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  background: var(--surface);
+}
+
+.qr-container svg {
+  display: block;
+  width: 240px;
+  height: 240px;
+}
+
+.qr-code-text {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.qr-url-text {
+  word-break: break-all;
+  font-size: 0.78rem;
+}
+
+.chat-presence {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.chat-pinned {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 0.8rem;
+  background: #fefce8;
+  border-bottom: 1px solid #fef08a;
+  color: #713f12;
+  word-break: break-word;
+}
+
+.chat-msg-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.chat-msg-action {
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.chat-msg-action:hover {
+  opacity: 1;
+}
+
+.chat-pinned a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.chat-admin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.chat-inline-notice {
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  color: #b91c1c;
+  background: #fef2f2;
+  border-top: 1px solid #fecaca;
 }
 
 .chat-form {

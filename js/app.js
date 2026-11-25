@@ -14,6 +14,7 @@ const el = {
   brandTagline: document.getElementById("brand-tagline"),
   pageTitle: document.getElementById("page-title"),
   workshopLeader: document.getElementById("workshop-leader"),
+  workshopLeaderName: document.getElementById("workshop-leader-name"),
   brandDescription: document.getElementById("brand-description"),
   footerLinks: document.getElementById("footer-links"),
   footerProvider: document.getElementById("footer-provider"),
@@ -26,17 +27,16 @@ const el = {
   typeFilter: document.getElementById("type-filter"),
   sortSelect: document.getElementById("sort-select"),
   fileList: document.getElementById("file-list"),
-  previewModal: document.getElementById("preview-modal"),
-  previewTitle: document.getElementById("preview-title"),
-  previewMeta: document.getElementById("preview-meta"),
-  previewDownload: document.getElementById("preview-download"),
-  previewBody: document.getElementById("preview-body"),
   toast: document.getElementById("toast"),
   portalGate: document.getElementById("portal-gate"),
   portalGateForm: document.getElementById("portal-gate-form"),
   portalCodeInput: document.getElementById("portal-code-input"),
   portalGateError: document.getElementById("portal-gate-error"),
   portalGateBtn: document.getElementById("portal-gate-btn"),
+  gateIndicator: document.getElementById("gate-indicator"),
+  gateCheck: document.getElementById("gate-check"),
+  gateCross: document.getElementById("gate-cross"),
+  leaveRoomBtn: document.getElementById("leave-room-btn"),
   portalContent: document.getElementById("portal-content"),
 };
 
@@ -67,13 +67,19 @@ function applyBranding(siteConfig = {}) {
   }
 
   if (workshopLeader) {
-    el.workshopLeader.textContent = workshopLeader;
+    el.workshopLeaderName.textContent = workshopLeader;
     el.workshopLeader.classList.remove("hidden");
   } else {
     el.workshopLeader.classList.add("hidden");
   }
 
-  el.brandDescription.textContent = description;
+  if (description) {
+    el.brandDescription.textContent = description;
+    el.brandDescription.classList.remove("hidden");
+  } else {
+    el.brandDescription.textContent = "";
+    el.brandDescription.classList.add("hidden");
+  }
 
   if (branding.logoUrl) {
     const img = document.createElement("img");
@@ -141,18 +147,6 @@ function getFileCategoryGroup(ext) {
   return "other";
 }
 
-function isPreviewable(ext) {
-  const e = (ext || "").toLowerCase();
-  return ["pdf", "png", "jpg", "jpeg", "gif", "webp", "svg", "txt", "md", "json", "csv"].includes(e);
-}
-
-function showToast(message) {
-  el.toast.textContent = message;
-  el.toast.classList.remove("hidden");
-  clearTimeout(showToast.timer);
-  showToast.timer = setTimeout(() => el.toast.classList.add("hidden"), 2400);
-}
-
 function renderCategories() {
   const folders = Array.from(new Set(state.files.map((f) => f.folder || "Allgemein"))).sort();
   const options = ["all", ...folders];
@@ -198,48 +192,6 @@ function getFilteredFiles() {
           return new Date(b.modifiedAt) - new Date(a.modifiedAt);
       }
     });
-}
-
-function openPreview(file) {
-  const ext = (file.ext || "").toLowerCase();
-  const url = encodeURI(file.url);
-
-  el.previewTitle.textContent = file.name;
-  el.previewMeta.textContent = `${file.folder || "Allgemein"} · ${formatBytes(file.size)} · ${formatDate(file.modifiedAt)}`;
-  el.previewDownload.href = url;
-  el.previewDownload.download = file.name;
-  el.previewBody.replaceChildren();
-
-  if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) {
-    const img = document.createElement("img");
-    img.src = url;
-    img.alt = file.name;
-    el.previewBody.appendChild(img);
-  } else if (ext === "pdf") {
-    const iframe = document.createElement("iframe");
-    iframe.src = url;
-    iframe.title = file.name;
-    el.previewBody.appendChild(iframe);
-  } else {
-    const pre = document.createElement("pre");
-    pre.textContent = "Lade Vorschau...";
-    el.previewBody.appendChild(pre);
-    fetch(url)
-      .then((res) => (res.ok ? res.text() : Promise.reject(new Error("Fehler beim Laden"))))
-      .then((text) => {
-        pre.textContent = text.slice(0, 100_000);
-      })
-      .catch(() => {
-        pre.textContent = "Vorschau konnte nicht geladen werden.";
-      });
-  }
-
-  el.previewModal.classList.remove("hidden");
-}
-
-function closePreview() {
-  el.previewModal.classList.add("hidden");
-  el.previewBody.replaceChildren();
 }
 
 function renderFiles() {
@@ -304,37 +256,6 @@ function escapeHtml(str) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
-}
-
-async function listSupabaseStorageFiles(client, bucket, prefix = "") {
-  const { data, error } = await client.storage.from(bucket).list(prefix, {
-    limit: 1000,
-    sortBy: { column: "name", order: "asc" },
-  });
-  if (error || !Array.isArray(data)) return [];
-
-  const results = [];
-  for (const item of data) {
-    if (!item.name || item.name.startsWith(".")) continue;
-    const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
-    // Ordner haben in Supabase Storage kein metadata-Objekt (id === null)
-    if (!item.id) {
-      const nested = await listSupabaseStorageFiles(client, bucket, fullPath);
-      results.push(...nested);
-    } else {
-      const { data: pub } = client.storage.from(bucket).getPublicUrl(fullPath);
-      const ext = item.name.includes(".") ? item.name.split(".").pop().toLowerCase() : "";
-      results.push({
-        name: item.name,
-        folder: prefix || "Allgemein",
-        ext,
-        size: item.metadata?.size || 0,
-        modifiedAt: item.updated_at || item.created_at || new Date().toISOString(),
-        url: pub.publicUrl,
-      });
-    }
-  }
-  return results;
 }
 
 async function loadManifest(portalCode = "") {
@@ -413,14 +334,15 @@ function bindEvents() {
     renderFiles();
   });
 
-  document.querySelectorAll("[data-close-modal]").forEach((node) => {
-    node.addEventListener("click", closePreview);
-  });
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !el.previewModal.classList.contains("hidden")) {
-      closePreview();
-    }
+  el.leaveRoomBtn?.addEventListener("click", () => {
+    [
+      "ogl-portal-code",
+      "ogl-chat-code",
+      "ogl-chat-author",
+      "ogl-chat-author-at",
+      "ogl-chat-last-seen",
+    ].forEach((k) => localStorage.removeItem(k));
+    window.location.reload();
   });
 }
 
@@ -428,8 +350,8 @@ async function initOptionalChat(portalCode = "") {
   if (!CONFIG.supabase?.enabled || !CONFIG.supabase?.url || !CONFIG.supabase?.anonKey) {
     return;
   }
-  const { initSupabaseChat } = await import("./supabase-chat.js?v=12");
-  initSupabaseChat(CONFIG.supabase, portalCode);
+  const { initSupabaseChat } = await import("./supabase-chat.js?v=26");
+  initSupabaseChat(CONFIG.supabase, portalCode, () => loadManifest(portalCode));
 }
 
 async function loadSiteConfig() {
@@ -484,6 +406,7 @@ async function checkPortalCode(sbClient, room, code) {
 async function unlockPortal(code) {
   el.portalGate.classList.add("hidden");
   el.portalContent.classList.remove("hidden");
+  el.leaveRoomBtn?.classList.remove("hidden");
   await Promise.all([loadManifest(code), initOptionalChat(code)]);
 }
 
@@ -502,6 +425,16 @@ async function init() {
     const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
     const sbClient = createClient(sb.url, sb.anonKey);
     const room = sb.roomName || "general";
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlCode = (urlParams.get("code") || "").trim();
+    if (urlCode) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+      if (await checkPortalCode(sbClient, room, urlCode)) {
+        localStorage.setItem(PORTAL_CODE_KEY, urlCode);
+        await unlockPortal(urlCode);
+        return;
+      }
+    }
 
     const savedCode = (localStorage.getItem(PORTAL_CODE_KEY) || "").trim();
     if (savedCode && (await checkPortalCode(sbClient, room, savedCode))) {
@@ -519,21 +452,42 @@ async function init() {
       const entered = el.portalCodeInput.value.trim();
       if (!entered) return;
 
+      el.gateIndicator.classList.remove("success", "error");
+      el.gateIndicator.classList.add("verifying");
+      el.gateCheck.classList.add("hidden");
+      el.gateCross.classList.add("hidden");
       el.portalGateBtn.disabled = true;
       el.portalGateBtn.textContent = "Prüfe...";
+
       try {
         const ok = await checkPortalCode(sbClient, room, entered);
+        el.gateIndicator.classList.remove("verifying");
+
         if (!ok) {
+          el.gateIndicator.classList.add("error");
+          el.gateCross.classList.remove("hidden");
+          el.portalCodeInput.classList.remove("gate-shake");
+          void el.portalCodeInput.offsetWidth;
+          el.portalCodeInput.classList.add("gate-shake");
           el.portalGateError.textContent = "Falscher Workshop-Code.";
           el.portalGateError.classList.remove("hidden");
+          el.portalGateBtn.disabled = false;
+          el.portalGateBtn.textContent = "Freischalten";
           return;
         }
+
+        el.gateIndicator.classList.add("success");
+        el.gateCheck.classList.remove("hidden");
+        el.portalGateBtn.textContent = "Freigeschaltet";
         localStorage.setItem(PORTAL_CODE_KEY, entered);
+        await new Promise((r) => setTimeout(r, 720));
         await unlockPortal(entered);
       } catch (err) {
+        el.gateIndicator.classList.remove("verifying");
+        el.gateIndicator.classList.add("error");
+        el.gateCross.classList.remove("hidden");
         el.portalGateError.textContent = err.message || "Prüfung fehlgeschlagen";
         el.portalGateError.classList.remove("hidden");
-      } finally {
         el.portalGateBtn.disabled = false;
         el.portalGateBtn.textContent = "Freischalten";
       }
