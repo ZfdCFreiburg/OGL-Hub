@@ -14,7 +14,7 @@ export const CONFIG = {
     accentHoverColor: "#4c1d95",
     footerText: "OGL Hub — OpenGameLab",
     footerProvider: {
-      label: "Bereitgestellt durch das\nZentrum für didaktische Computerspielforschung",
+      label: "Bereitgestellt durch\nZentrum für didaktische Computerspielforschung",
       logoUrl: "./assets/zfdc-logo.png",
       alt: "ZfdC – Zentrum für didaktische Computerspielforschung",
     },
