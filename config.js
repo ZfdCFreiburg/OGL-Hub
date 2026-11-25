@@ -4,7 +4,7 @@
  */
 export const CONFIG = {
   branding: {
-    name: "OGL Hub",
+    name: "Hub",
     tagline: "",
     description: "Dokumente, Vorlagen und Materialien einfach herunterladen.",
     // Pfad zum Hauptlogo oben links
