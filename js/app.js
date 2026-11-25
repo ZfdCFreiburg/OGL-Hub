@@ -454,7 +454,7 @@ async function initOptionalChat(portalCode = "") {
   if (!CONFIG.supabase?.enabled || !CONFIG.supabase?.url || !CONFIG.supabase?.anonKey) {
     return;
   }
-  const { initSupabaseChat } = await import("./supabase-chat.js?v=10");
+  const { initSupabaseChat } = await import("./supabase-chat.js?v=12");
   initSupabaseChat(CONFIG.supabase, portalCode);
 }
 

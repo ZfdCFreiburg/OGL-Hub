@@ -660,9 +660,8 @@ body {
   font-weight: 700;
   padding: 1px 7px;
   border-radius: 999px;
-  background: var(--surface-alt);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
+  background: var(--accent);
+  color: #ffffff;
 }
 
 .chat-chevron {

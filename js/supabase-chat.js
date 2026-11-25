@@ -41,6 +41,7 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "") {
   const NAME_KEY = "ogl-chat-author";
   const NAME_TIME_KEY = "ogl-chat-author-at";
   const COLOR_KEY = "ogl-chat-color";
+  const LAST_SEEN_KEY = "ogl-chat-last-seen";
   const NAME_TTL_MS = 2 * 60 * 60 * 1000; // 2 Stunden
   const MSG_TTL_MS = 3 * 60 * 60 * 1000; // 3 Stunden
   const SEND_COOLDOWN_MS = 3000;
@@ -48,6 +49,7 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "") {
   const room = supabaseConfig.roomName || "general";
   let lastSentAt = 0;
   let chosenColor = (localStorage.getItem(COLOR_KEY) || "").trim();
+  let lastSeenAt = Number(localStorage.getItem(LAST_SEEN_KEY) || 0);
 
   function readSavedName() {
     const saved = (localStorage.getItem(NAME_KEY) || "").trim();
@@ -64,7 +66,6 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "") {
   let workshopCode = (initialPortalCode || localStorage.getItem(CODE_KEY) || "").trim();
   let codeRequired = false;
   let isAuthorized = false;
-  let messageCount = 0;
   let isOpen = false;
   let client = null;
   let channel = null;
@@ -77,9 +78,19 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "") {
     dot.title = isOnline ? "Online (Live)" : "Verbinde...";
   }
 
-  function updateCount(n) {
-    messageCount = n;
-    countEl.textContent = String(messageCount);
+  function updateUnreadBadge() {
+    if (isOpen) {
+      lastSeenAt = Date.now();
+      localStorage.setItem(LAST_SEEN_KEY, String(lastSeenAt));
+      countEl.textContent = "0";
+      countEl.classList.add("hidden");
+      return;
+    }
+    const unread = Array.from(messagesEl.children).filter(
+      (node) => Number(node.dataset.ts || 0) > lastSeenAt
+    ).length;
+    countEl.textContent = String(unread);
+    countEl.classList.toggle("hidden", unread === 0);
   }
 
   function showJoinError(msg) {
@@ -141,6 +152,7 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "") {
     panel.classList.toggle("hidden", !isOpen);
     bar.setAttribute("aria-expanded", String(isOpen));
     chevron.textContent = isOpen ? "▼" : "▲";
+    updateUnreadBadge();
     if (isOpen) {
       syncParticipantView();
       if (authorName) {
@@ -186,7 +198,7 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "") {
     Array.from(messagesEl.children).forEach((node) => {
       if (Number(node.dataset.ts || 0) < cutoff) node.remove();
     });
-    updateCount(messagesEl.children.length);
+    updateUnreadBadge();
   }
 
   function appendSingleMessage(msg) {
@@ -194,7 +206,7 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "") {
     pruneExpiredNodes();
     messagesEl.appendChild(createMessageNode(msg));
     messagesEl.scrollTop = messagesEl.scrollHeight;
-    updateCount(messagesEl.children.length);
+    updateUnreadBadge();
   }
 
   function renderMessages(rows) {
@@ -204,7 +216,7 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "") {
       .filter((msg) => new Date(msg.created_at).getTime() >= cutoff)
       .forEach((msg) => messagesEl.appendChild(createMessageNode(msg)));
     messagesEl.scrollTop = messagesEl.scrollHeight;
-    updateCount(messagesEl.children.length);
+    updateUnreadBadge();
   }
 
   async function fetchMessages(codeToUse) {
@@ -325,7 +337,7 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "") {
       })
       .on("broadcast", { event: "clear_all" }, () => {
         messagesEl.replaceChildren();
-        updateCount(0);
+        updateUnreadBadge();
       })
       .on("broadcast", { event: "delete_message" }, ({ payload }) => {
         const targetId = String(payload?.id || "");
@@ -333,7 +345,7 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "") {
         const node = messagesEl.querySelector(`[data-id="${targetId}"]`);
         if (node) {
           node.remove();
-          updateCount(messagesEl.children.length);
+          updateUnreadBadge();
         }
       })
       .subscribe((status) => {
