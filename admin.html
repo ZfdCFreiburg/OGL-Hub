@@ -74,14 +74,15 @@
         <div class="admin-grid">
           <!-- Workshop-Infos -->
           <div class="admin-card">
-            <div class="card-header-row" style="margin-bottom: 6px;">
-              <h3 style="margin: 0;">Workshop-Infos</h3>
-              <span class="muted-text">Sofort live</span>
-            </div>
+            <h3>Workshop-Infos</h3>
             <form id="config-form" class="stack-form">
               <label class="field-label">
                 Überschrift der Download-Seite
                 <input id="cfg-page-title" type="text" class="search-input" placeholder="z. B. Workshop Digital Independence" />
+              </label>
+              <label class="field-label">
+                Workshop-Code
+                <input id="cfg-chat-code" type="text" class="search-input" placeholder="z. B. ogl2026" maxlength="64" required />
               </label>
               <label class="field-label">
                 Name der Workshopleitung (optional)
@@ -91,19 +92,7 @@
                 Beschreibung
                 <textarea id="cfg-description" class="search-input" rows="3" placeholder="Kurzer Hinweistext unter der Überschrift"></textarea>
               </label>
-              <button id="save-config-btn" class="btn btn-primary" type="submit">Konfiguration speichern</button>
-            </form>
-
-            <hr style="border: none; border-top: 1px solid var(--border); margin: 18px 0;" />
-
-            <h3>Workshop-Code</h3>
-            <p class="muted-text">Gilt für das gesamte Portal (Dateien &amp; Chat).</p>
-            <form id="chat-code-form" class="stack-form">
-              <label class="field-label">
-                Workshop-Code
-                <input id="cfg-chat-code" type="text" class="search-input" placeholder="z. B. ogl2026" maxlength="64" required />
-              </label>
-              <button id="save-chat-code-btn" class="btn btn-secondary" type="submit">Workshop-Code speichern</button>
+              <button id="save-config-btn" class="btn btn-primary" type="submit">Speichern</button>
             </form>
           </div>
 
@@ -178,6 +167,6 @@
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/admin.js?v=15"></script>
+  <script type="module" src="./js/admin.js?v=16"></script>
 </body>
 </html>

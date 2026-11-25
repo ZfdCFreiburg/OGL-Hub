@@ -29,13 +29,7 @@ const el = {
   cfgLeader: document.getElementById("cfg-leader"),
   cfgDescription: document.getElementById("cfg-description"),
   saveConfigBtn: document.getElementById("save-config-btn"),
-  deployProgressBox: document.getElementById("deploy-progress-box"),
-  deployProgressLabel: document.getElementById("deploy-progress-label"),
-  deployProgressPercent: document.getElementById("deploy-progress-percent"),
-  deployProgressFill: document.getElementById("deploy-progress-fill"),
-  chatCodeForm: document.getElementById("chat-code-form"),
   cfgChatCode: document.getElementById("cfg-chat-code"),
-  saveChatCodeBtn: document.getElementById("save-chat-code-btn"),
   uploadForm: document.getElementById("upload-form"),
   uploadFolder: document.getElementById("upload-folder"),
   folderSuggestions: document.getElementById("folder-suggestions"),
@@ -271,35 +265,43 @@ async function loadChatCode() {
   }
 }
 
-async function saveChatCode(e) {
+async function saveSiteConfig(e) {
   e.preventDefault();
-  if (state.mode !== "supabase" || !state.supabaseClient) {
-    showToast("Nur im Supabase-Modus verfügbar");
-    return;
-  }
+  if (!state.supabaseClient) return;
   const code = el.cfgChatCode.value.trim();
   if (!code) {
     showToast("Bitte einen Workshop-Code eingeben");
     return;
   }
-  el.saveChatCodeBtn.disabled = true;
-  el.saveChatCodeBtn.textContent = "Speichere...";
+
+  el.saveConfigBtn.disabled = true;
+  el.saveConfigBtn.textContent = "Speichere...";
+
   try {
     const room = CONFIG.supabase.roomName || "general";
-    const { error } = await state.supabaseClient
-      .from("chat_settings")
-      .upsert({
+    const now = new Date().toISOString();
+    const [siteRes, codeRes] = await Promise.all([
+      state.supabaseClient.from("site_settings").upsert({
+        id: "default",
+        page_title: el.cfgPageTitle.value.trim(),
+        workshop_leader: el.cfgLeader.value.trim(),
+        description: el.cfgDescription.value.trim(),
+        updated_at: now,
+      }),
+      state.supabaseClient.from("chat_settings").upsert({
         room,
         workshop_code: code,
-        updated_at: new Date().toISOString(),
-      });
-    if (error) throw error;
-    showToast("Workshop-Code gespeichert");
+        updated_at: now,
+      }),
+    ]);
+    if (siteRes.error) throw siteRes.error;
+    if (codeRes.error) throw codeRes.error;
+    showToast("Workshop-Infos & Code gespeichert");
   } catch (err) {
     showToast(`Fehler: ${err.message}`);
   } finally {
-    el.saveChatCodeBtn.disabled = false;
-    el.saveChatCodeBtn.textContent = "Workshop-Code speichern";
+    el.saveConfigBtn.disabled = false;
+    el.saveConfigBtn.textContent = "Speichern";
   }
 }
 
@@ -430,32 +432,6 @@ async function loadSiteConfig() {
     }
   } catch {
     // ignore
-  }
-}
-
-async function saveSiteConfig(e) {
-  e.preventDefault();
-  if (!state.supabaseClient) return;
-  el.saveConfigBtn.disabled = true;
-  el.saveConfigBtn.textContent = "Speichere...";
-
-  try {
-    const { error } = await state.supabaseClient
-      .from("site_settings")
-      .upsert({
-        id: "default",
-        page_title: el.cfgPageTitle.value.trim(),
-        workshop_leader: el.cfgLeader.value.trim(),
-        description: el.cfgDescription.value.trim(),
-        updated_at: new Date().toISOString(),
-      });
-    if (error) throw error;
-    showToast("Workshop-Infos gespeichert (sofort live)");
-  } catch (err) {
-    showToast(`Fehler: ${err.message}`);
-  } finally {
-    el.saveConfigBtn.disabled = false;
-    el.saveConfigBtn.textContent = "Konfiguration speichern";
   }
 }
 
@@ -775,7 +751,6 @@ function bindEvents() {
   });
 
   el.configForm.addEventListener("submit", saveSiteConfig);
-  el.chatCodeForm.addEventListener("submit", saveChatCode);
   el.uploadForm.addEventListener("submit", uploadFiles);
   el.refreshFilesBtn.addEventListener("click", loadRepoFiles);
   el.refreshChatBtn.addEventListener("click", loadAdminChatMessages);
