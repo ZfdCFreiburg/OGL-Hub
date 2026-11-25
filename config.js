@@ -15,7 +15,7 @@ export const CONFIG = {
     footerText: "OGL Hub — OpenGameLab",
     footerProvider: {
       label: "Bereitgestellt durch\nZentrum für didaktische Computerspielforschung",
-      logoUrl: "./assets/zfdc-logo.png",
+      logoUrl: "./assets/zfdc-logo.jpg",
       alt: "ZfdC – Zentrum für didaktische Computerspielforschung",
     },
     footerLinks: [
