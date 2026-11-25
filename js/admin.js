@@ -416,51 +416,41 @@ async function authenticateWithToken(token, persist) {
 }
 
 async function loadSiteConfig() {
+  if (!state.supabaseClient) return;
   try {
-    const data =
-      state.mode === "supabase"
-        ? await invokeSupabaseAdmin({ action: "getConfig" })
-        : await ghRequest(`/repos/${owner}/${repo}/contents/site-config.json?ref=${branch}`);
-
-    state.configSha = data.sha;
-    const parsed = JSON.parse(base64ToText(data.content));
-    el.cfgPageTitle.value = parsed.pageTitle || "";
-    el.cfgLeader.value = parsed.workshopLeader || "";
-    el.cfgDescription.value = parsed.description || "";
+    const { data, error } = await state.supabaseClient
+      .from("site_settings")
+      .select("page_title, workshop_leader, description")
+      .eq("id", "default")
+      .maybeSingle();
+    if (!error && data) {
+      el.cfgPageTitle.value = data.page_title || "";
+      el.cfgLeader.value = data.workshop_leader || "";
+      el.cfgDescription.value = data.description || "";
+    }
   } catch {
-    state.configSha = null;
+    // ignore
   }
 }
 
 async function saveSiteConfig(e) {
   e.preventDefault();
+  if (!state.supabaseClient) return;
   el.saveConfigBtn.disabled = true;
   el.saveConfigBtn.textContent = "Speichere...";
 
   try {
-    const payload = {
-      pageTitle: el.cfgPageTitle.value.trim(),
-      workshopLeader: el.cfgLeader.value.trim(),
-      description: el.cfgDescription.value.trim(),
-    };
-    const encoded = textToBase64(JSON.stringify(payload, null, 2) + "\n");
-
-    const res =
-      state.mode === "supabase"
-        ? await invokeSupabaseAdmin({ action: "saveConfig", content: encoded, sha: state.configSha })
-        : await ghRequest(`/repos/${owner}/${repo}/contents/site-config.json`, {
-            method: "PUT",
-            body: JSON.stringify({
-              message: "Update site-config.json via Admin UI",
-              content: encoded,
-              branch,
-              ...(state.configSha ? { sha: state.configSha } : {}),
-            }),
-          });
-
-    state.configSha = res.content.sha;
-    showToast("Konfiguration gespeichert — GitHub Pages baut...");
-    pollDeployStatus();
+    const { error } = await state.supabaseClient
+      .from("site_settings")
+      .upsert({
+        id: "default",
+        page_title: el.cfgPageTitle.value.trim(),
+        workshop_leader: el.cfgLeader.value.trim(),
+        description: el.cfgDescription.value.trim(),
+        updated_at: new Date().toISOString(),
+      });
+    if (error) throw error;
+    showToast("Workshop-Infos gespeichert (sofort live)");
   } catch (err) {
     showToast(`Fehler: ${err.message}`);
   } finally {

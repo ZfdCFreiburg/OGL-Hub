@@ -231,3 +231,44 @@ end;
 $$;
 
 grant execute on function public.verify_portal_code(text, text) to anon, authenticated;
+
+-- 5. Workshop-Infos (sofort live ohne GitHub-Pages-Build)
+create table if not exists public.site_settings (
+  id text primary key default 'default',
+  page_title text not null default '',
+  workshop_leader text not null default '',
+  description text not null default '',
+  updated_at timestamptz not null default now()
+);
+
+insert into public.site_settings (id, page_title, workshop_leader, description)
+values (
+  'default',
+  'Workshop Digital Independence',
+  'bene',
+  'Dokumente, Vorlagen und Materialien einfach herunterladen.'
+)
+on conflict (id) do nothing;
+
+alter table public.site_settings enable row level security;
+
+grant select on public.site_settings to anon, authenticated;
+grant insert, update on public.site_settings to authenticated;
+
+drop policy if exists "Jeder darf site_settings lesen" on public.site_settings;
+create policy "Jeder darf site_settings lesen"
+  on public.site_settings for select
+  using (true);
+
+drop policy if exists "Admin darf site_settings bearbeiten" on public.site_settings;
+create policy "Admin darf site_settings bearbeiten"
+  on public.site_settings for all
+  to authenticated
+  using (
+    lower(auth.jwt() ->> 'email') = 'zfdc@janboelmann.de'
+    or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
+  )
+  with check (
+    lower(auth.jwt() ->> 'email') = 'zfdc@janboelmann.de'
+    or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
+  );

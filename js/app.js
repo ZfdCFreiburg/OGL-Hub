@@ -459,6 +459,34 @@ async function initOptionalChat(portalCode = "") {
 }
 
 async function loadSiteConfig() {
+  const sb = CONFIG.supabase;
+  if (sb?.url && sb?.anonKey) {
+    try {
+      const res = await fetch(
+        `${sb.url}/rest/v1/site_settings?id=eq.default&select=page_title,workshop_leader,description`,
+        {
+          cache: "no-store",
+          headers: {
+            apikey: sb.anonKey,
+            Authorization: `Bearer ${sb.anonKey}`,
+          },
+        }
+      );
+      if (res.ok) {
+        const rows = await res.json();
+        if (rows?.[0]) {
+          return {
+            pageTitle: rows[0].page_title,
+            workshopLeader: rows[0].workshop_leader,
+            description: rows[0].description,
+          };
+        }
+      }
+    } catch {
+      // Fallback auf site-config.json
+    }
+  }
+
   try {
     const res = await fetch("./site-config.json", { cache: "no-store" });
     if (!res.ok) return {};
