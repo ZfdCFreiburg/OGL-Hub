@@ -1,0 +1,14 @@
+{
+  "generatedAt": "2026-11-25T14:31:43.794Z",
+  "count": 1,
+  "files": [
+    {
+      "name": "Willkommen.txt",
+      "folder": "Beispiel",
+      "ext": "txt",
+      "size": 329,
+      "modifiedAt": "2026-11-25T14:30:09.974Z",
+      "url": "./files/Beispiel/Willkommen.txt"
+    }
+  ]
+}

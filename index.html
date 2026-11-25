@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OGL Hub — Dateiaustausch</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="site-header">
+      <div class="container header-inner">
+        <div class="brand">
+          <div id="brand-logo" class="brand-logo" aria-hidden="true"></div>
+          <div>
+            <h1 id="brand-name" class="brand-name">OGL Hub</h1>
+            <p id="brand-tagline" class="brand-tagline hidden"></p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button id="chat-toggle" class="btn btn-secondary hidden" type="button">
+            <span>💬</span>
+            <span id="chat-toggle-label">Chat</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container main-content">
+      <section class="hero">
+        <div class="hero-text">
+          <h2 id="page-title" class="hero-title"></h2>
+          <p id="workshop-leader" class="hero-leader hidden"></p>
+          <p id="brand-description" class="hero-description"></p>
+        </div>
+        <div class="stats-bar">
+          <span id="file-count" class="stat-pill">0 Dateien</span>
+          <span id="last-updated" class="stat-pill muted">Stand: —</span>
+        </div>
+      </section>
+
+      <section class="controls" aria-label="Suche und Filter">
+        <div class="search-wrap">
+          <input
+            id="search-input"
+            type="search"
+            class="search-input"
+            placeholder="Dateien durchsuchen (Name, Ordner, Typ)..."
+            autocomplete="off"
+          />
+        </div>
+        <div class="filter-row">
+          <div id="category-pills" class="pill-group" role="tablist" aria-label="Ordner"></div>
+          <div class="select-group">
+            <select id="type-filter" class="select-input" aria-label="Nach Dateityp filtern">
+              <option value="all">Alle Dateitypen</option>
+              <option value="document">Dokumente & PDF</option>
+              <option value="image">Bilder</option>
+              <option value="spreadsheet">Tabellen</option>
+              <option value="archive">Archive</option>
+              <option value="other">Sonstiges</option>
+            </select>
+            <select id="sort-select" class="select-input" aria-label="Sortierung">
+              <option value="date-desc">Neueste zuerst</option>
+              <option value="date-asc">Älteste zuerst</option>
+              <option value="name-asc">Name (A–Z)</option>
+              <option value="size-desc">Größe (absteigend)</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section id="file-list" class="file-grid" aria-live="polite"></section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <div class="footer-left">
+          <span id="footer-text"></span>
+          <nav id="footer-links" class="footer-links" aria-label="Rechtliches"></nav>
+        </div>
+        <div id="footer-provider" class="footer-provider hidden">
+          <span id="footer-provider-label" class="footer-provider-label"></span>
+          <img id="footer-provider-logo" class="footer-provider-logo" alt="" />
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Vorschau-Modal -->
+  <div id="preview-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="preview-title">
+    <div class="modal-backdrop" data-close-modal></div>
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h2 id="preview-title" class="modal-title">Vorschau</h2>
+          <p id="preview-meta" class="modal-meta"></p>
+        </div>
+        <div class="modal-actions">
+          <a id="preview-download" class="btn btn-primary" download>Herunterladen</a>
+          <button class="icon-btn" type="button" data-close-modal aria-label="Schließen">✕</button>
+        </div>
+      </div>
+      <div id="preview-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Chat-Drawer (vorbereitet für Supabase) -->
+  <aside id="chat-drawer" class="chat-drawer hidden" aria-label="Chat">
+    <div class="chat-header">
+      <div>
+        <h2 id="chat-title" class="chat-title">Team-Chat</h2>
+        <span id="chat-status" class="chat-status">Verbunden</span>
+      </div>
+      <button id="chat-close" class="icon-btn" type="button" aria-label="Chat schließen">✕</button>
+    </div>
+    <div id="chat-messages" class="chat-messages"></div>
+    <form id="chat-form" class="chat-form">
+      <input
+        id="chat-author"
+        type="text"
+        class="chat-author-input"
+        placeholder="Dein Name"
+        maxlength="40"
+        required
+      />
+      <div class="chat-input-row">
+        <input
+          id="chat-input"
+          type="text"
+          class="chat-text-input"
+          placeholder="Nachricht schreiben..."
+          maxlength="1000"
+          required
+        />
+        <button class="btn btn-primary" type="submit">Senden</button>
+      </div>
+    </form>
+  </aside>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
