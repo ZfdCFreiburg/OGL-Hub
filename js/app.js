@@ -11,12 +11,10 @@ const state = {
 
 const el = {
   brandLogo: document.getElementById("brand-logo"),
-  brandName: document.getElementById("brand-name"),
   brandTagline: document.getElementById("brand-tagline"),
   pageTitle: document.getElementById("page-title"),
   workshopLeader: document.getElementById("workshop-leader"),
   brandDescription: document.getElementById("brand-description"),
-  footerText: document.getElementById("footer-text"),
   footerLinks: document.getElementById("footer-links"),
   footerProvider: document.getElementById("footer-provider"),
   footerProviderLabel: document.getElementById("footer-provider-label"),
@@ -34,8 +32,12 @@ const el = {
   previewDownload: document.getElementById("preview-download"),
   previewBody: document.getElementById("preview-body"),
   toast: document.getElementById("toast"),
-  chatToggle: document.getElementById("chat-toggle"),
-  chatToggleLabel: document.getElementById("chat-toggle-label"),
+  portalGate: document.getElementById("portal-gate"),
+  portalGateForm: document.getElementById("portal-gate-form"),
+  portalCodeInput: document.getElementById("portal-code-input"),
+  portalGateError: document.getElementById("portal-gate-error"),
+  portalGateBtn: document.getElementById("portal-gate-btn"),
+  portalContent: document.getElementById("portal-content"),
 };
 
 function applyBranding(siteConfig = {}) {
@@ -49,7 +51,6 @@ function applyBranding(siteConfig = {}) {
   document.documentElement.style.setProperty("--accent", branding.accentColor);
   document.documentElement.style.setProperty("--accent-hover", branding.accentHoverColor);
 
-  el.brandName.textContent = branding.name;
   if (tagline) {
     el.brandTagline.textContent = tagline;
     el.brandTagline.classList.remove("hidden");
@@ -66,14 +67,13 @@ function applyBranding(siteConfig = {}) {
   }
 
   if (workshopLeader) {
-    el.workshopLeader.textContent = `Workshopleitung: ${workshopLeader}`;
+    el.workshopLeader.textContent = workshopLeader;
     el.workshopLeader.classList.remove("hidden");
   } else {
     el.workshopLeader.classList.add("hidden");
   }
 
   el.brandDescription.textContent = description;
-  el.footerText.textContent = branding.footerText;
 
   if (branding.logoUrl) {
     const img = document.createElement("img");
@@ -332,18 +332,91 @@ function escapeHtml(str) {
     .replaceAll('"', "&quot;");
 }
 
-async function loadManifest() {
+async function listSupabaseStorageFiles(client, bucket, prefix = "") {
+  const { data, error } = await client.storage.from(bucket).list(prefix, {
+    limit: 1000,
+    sortBy: { column: "name", order: "asc" },
+  });
+  if (error || !Array.isArray(data)) return [];
+
+  const results = [];
+  for (const item of data) {
+    if (!item.name || item.name.startsWith(".")) continue;
+    const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
+    // Ordner haben in Supabase Storage kein metadata-Objekt (id === null)
+    if (!item.id) {
+      const nested = await listSupabaseStorageFiles(client, bucket, fullPath);
+      results.push(...nested);
+    } else {
+      const { data: pub } = client.storage.from(bucket).getPublicUrl(fullPath);
+      const ext = item.name.includes(".") ? item.name.split(".").pop().toLowerCase() : "";
+      results.push({
+        name: item.name,
+        folder: prefix || "Allgemein",
+        ext,
+        size: item.metadata?.size || 0,
+        modifiedAt: item.updated_at || item.created_at || new Date().toISOString(),
+        url: pub.publicUrl,
+      });
+    }
+  }
+  return results;
+}
+
+async function loadManifest(portalCode = "") {
+  let staticFiles = [];
+  let generatedAt = null;
   try {
     const res = await fetch("./files-manifest.json", { cache: "no-store" });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    state.files = Array.isArray(data.files) ? data.files : [];
-    state.generatedAt = data.generatedAt || null;
-    el.lastUpdated.textContent = `Stand: ${formatDate(state.generatedAt)}`;
+    if (res.ok) {
+      const data = await res.json();
+      staticFiles = Array.isArray(data.files) ? data.files : [];
+      generatedAt = data.generatedAt || null;
+    }
   } catch {
-    state.files = [];
-    el.lastUpdated.textContent = "Stand: —";
+    staticFiles = [];
   }
+
+  let releaseFiles = [];
+  const sb = CONFIG.supabase;
+  const fnName = CONFIG.admin.supabaseFunctionName || "github-admin";
+  if (sb?.url && sb?.anonKey) {
+    try {
+      const relRes = await fetch(`${sb.url}/functions/v1/${fnName}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: sb.anonKey,
+          Authorization: `Bearer ${sb.anonKey}`,
+        },
+        body: JSON.stringify({
+          action: "publicListReleases",
+          room: sb.roomName || "general",
+          code: portalCode,
+        }),
+      });
+      if (relRes.ok) {
+        const data = await relRes.json();
+        releaseFiles = (data.files || []).map((asset) => {
+          const ext = asset.name.includes(".") ? asset.name.split(".").pop().toLowerCase() : "";
+          return {
+            name: asset.name,
+            folder: asset.folder || "Allgemein",
+            ext,
+            size: asset.size || 0,
+            modifiedAt: asset.modifiedAt,
+            url: asset.url,
+          };
+        });
+      }
+    } catch {
+      releaseFiles = [];
+    }
+  }
+
+  state.files = [...releaseFiles, ...staticFiles];
+  state.generatedAt = releaseFiles[0]?.modifiedAt || generatedAt;
+  el.lastUpdated.textContent = `Stand: ${formatDate(state.generatedAt)}`;
   renderCategories();
   renderFiles();
 }
@@ -377,14 +450,12 @@ function bindEvents() {
   });
 }
 
-async function initOptionalChat() {
+async function initOptionalChat(portalCode = "") {
   if (!CONFIG.supabase?.enabled || !CONFIG.supabase?.url || !CONFIG.supabase?.anonKey) {
     return;
   }
-  el.chatToggle.classList.remove("hidden");
-  el.chatToggleLabel.textContent = CONFIG.supabase.chatTitle || "Chat";
-  const { initSupabaseChat } = await import("./supabase-chat.js");
-  initSupabaseChat(CONFIG.supabase);
+  const { initSupabaseChat } = await import("./supabase-chat.js?v=10");
+  initSupabaseChat(CONFIG.supabase, portalCode);
 }
 
 async function loadSiteConfig() {
@@ -397,12 +468,79 @@ async function loadSiteConfig() {
   }
 }
 
+const PORTAL_CODE_KEY = "ogl-portal-code";
+
+async function checkPortalCode(sbClient, room, code) {
+  const { data, error } = await sbClient.rpc("verify_portal_code", {
+    p_room: room,
+    p_code: code || "",
+  });
+  if (error) throw error;
+  return Boolean(data);
+}
+
+async function unlockPortal(code) {
+  el.portalGate.classList.add("hidden");
+  el.portalContent.classList.remove("hidden");
+  await Promise.all([loadManifest(code), initOptionalChat(code)]);
+}
+
 async function init() {
   const siteConfig = await loadSiteConfig();
   applyBranding(siteConfig);
   bindEvents();
-  loadManifest();
-  initOptionalChat();
+
+  const sb = CONFIG.supabase;
+  if (!sb?.url || !sb?.anonKey) {
+    await unlockPortal("");
+    return;
+  }
+
+  try {
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+    const sbClient = createClient(sb.url, sb.anonKey);
+    const room = sb.roomName || "general";
+
+    const savedCode = (localStorage.getItem(PORTAL_CODE_KEY) || "").trim();
+    if (savedCode && (await checkPortalCode(sbClient, room, savedCode))) {
+      await unlockPortal(savedCode);
+      return;
+    }
+
+    localStorage.removeItem(PORTAL_CODE_KEY);
+    el.portalGate.classList.remove("hidden");
+    el.portalCodeInput.focus();
+
+    el.portalGateForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      el.portalGateError.classList.add("hidden");
+      const entered = el.portalCodeInput.value.trim();
+      if (!entered) return;
+
+      el.portalGateBtn.disabled = true;
+      el.portalGateBtn.textContent = "Prüfe...";
+      try {
+        const ok = await checkPortalCode(sbClient, room, entered);
+        if (!ok) {
+          el.portalGateError.textContent = "Falscher Workshop-Code.";
+          el.portalGateError.classList.remove("hidden");
+          return;
+        }
+        localStorage.setItem(PORTAL_CODE_KEY, entered);
+        await unlockPortal(entered);
+      } catch (err) {
+        el.portalGateError.textContent = err.message || "Prüfung fehlgeschlagen";
+        el.portalGateError.classList.remove("hidden");
+      } finally {
+        el.portalGateBtn.disabled = false;
+        el.portalGateBtn.textContent = "Freischalten";
+      }
+    });
+  } catch {
+    el.portalGate.classList.remove("hidden");
+    el.portalGateError.textContent = "Verbindung zu Supabase fehlgeschlagen.";
+    el.portalGateError.classList.remove("hidden");
+  }
 }
 
 init();

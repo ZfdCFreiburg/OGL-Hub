@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — OGL Hub</title>
+  <link rel="stylesheet" href="./css/style.css?v=11" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="site-header">
+      <div class="container header-inner">
+        <div class="brand">
+          <div id="brand-logo" class="brand-logo" aria-hidden="true"></div>
+        </div>
+        <h2 class="header-page-title">Admin &amp; Upload</h2>
+        <div class="header-actions">
+          <a href="./index.html" class="btn btn-secondary">Zur Download-Seite</a>
+          <button id="logout-btn" class="btn btn-secondary hidden" type="button">Abmelden</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container main-content">
+      <!-- Login-Ansicht -->
+      <section id="login-section" class="admin-card login-card">
+        <h2>Admin-Anmeldung</h2>
+        <p id="login-subtitle" class="muted-text">
+          Melde dich mit deinem Konto an, um Dateien hochzuladen und die Seite zu konfigurieren.
+        </p>
+
+        <form id="supabase-login-form" class="stack-form hidden">
+          <label class="field-label">
+            E-Mail
+            <input
+              id="email-input"
+              type="email"
+              class="search-input"
+              placeholder="name@beispiel.de"
+              autocomplete="email"
+              required
+            />
+          </label>
+          <label class="field-label">
+            Passwort
+            <input
+              id="password-input"
+              type="password"
+              class="search-input"
+              placeholder="••••••••"
+              autocomplete="current-password"
+              required
+            />
+          </label>
+          <button id="supabase-login-submit" class="btn btn-primary" type="submit">Anmelden</button>
+        </form>
+
+        <div id="supabase-oauth-box" class="oauth-box hidden">
+          <div class="login-divider"><span>oder</span></div>
+          <button id="supabase-github-btn" class="btn btn-github oauth-btn" type="button">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
+            </svg>
+            <span>Mit GitHub anmelden</span>
+          </button>
+        </div>
+
+        <div id="login-error" class="alert-error hidden" style="margin-top: 12px;"></div>
+        <!-- Chat-Nachrichten verwalten -->
+        <div class="admin-card">
+          <div class="card-header-row">
+            <div>
+              <h3>OGL Chat — Nachrichten</h3>
+              <p class="muted-text">Nachrichten einzeln oder komplett entfernen (wirkt sofort).</p>
+            </div>
+            <div class="header-actions">
+              <button id="refresh-chat-btn" class="btn btn-secondary" type="button">Aktualisieren</button>
+              <button id="clear-chat-btn" class="btn btn-danger" type="button">Alle löschen</button>
+            </div>
+          </div>
+          <div id="admin-chat-list" class="admin-file-list"></div>
+        </div>
+      </section>
+
+      <!-- Admin-Dashboard -->
+      <section id="dashboard-section" class="admin-dashboard hidden">
+        <div class="admin-grid">
+          <!-- Workshop-Infos -->
+          <div class="admin-card">
+            <div class="card-header-row" style="margin-bottom: 6px;">
+              <h3 style="margin: 0;">Workshop-Infos</h3>
+              <span class="muted-text">(aktualisiert in ca. 20–30 Sek.)</span>
+            </div>
+            <form id="config-form" class="stack-form">
+              <label class="field-label">
+                Überschrift der Download-Seite
+                <input id="cfg-page-title" type="text" class="search-input" placeholder="z. B. Workshop Digital Independence" />
+              </label>
+              <label class="field-label">
+                Name der Workshopleitung (optional)
+                <input id="cfg-leader" type="text" class="search-input" placeholder="z. B. Max Mustermann" />
+              </label>
+              <label class="field-label">
+                Beschreibung
+                <textarea id="cfg-description" class="search-input" rows="3" placeholder="Kurzer Hinweistext unter der Überschrift"></textarea>
+              </label>
+              <button id="save-config-btn" class="btn btn-primary" type="submit">Konfiguration speichern</button>
+            </form>
+
+            <div id="deploy-progress-box" class="progress-box hidden" style="margin-top: 14px;">
+              <div class="progress-header">
+                <span id="deploy-progress-label">Prüfe GitHub Pages...</span>
+                <strong id="deploy-progress-percent">0 %</strong>
+              </div>
+              <div class="storage-bar-track">
+                <div id="deploy-progress-fill" class="storage-bar-fill"></div>
+              </div>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid var(--border); margin: 18px 0;" />
+
+            <h3>Workshop-Code</h3>
+            <p class="muted-text">Gilt für das gesamte Portal (Dateien &amp; Chat).</p>
+            <form id="chat-code-form" class="stack-form">
+              <label class="field-label">
+                Workshop-Code
+                <input id="cfg-chat-code" type="text" class="search-input" placeholder="z. B. ogl2026" maxlength="64" required />
+              </label>
+              <button id="save-chat-code-btn" class="btn btn-secondary" type="submit">Workshop-Code speichern</button>
+            </form>
+          </div>
+
+          <!-- Datei-Upload -->
+          <div class="admin-card">
+            <h3>Dateien hochladen</h3>
+            <p class="muted-text">Max. <strong>50 MB</strong> pro Datei · automatische Löschung nach 24 Std.</p>
+            <form id="upload-form" class="stack-form">
+              <label class="field-label">
+                Ordner (optional)
+                <input
+                  id="upload-folder"
+                  type="text"
+                  class="search-input"
+                  list="folder-suggestions"
+                  placeholder="z. B. Vorlagen oder leer lassen"
+                />
+                <datalist id="folder-suggestions"></datalist>
+              </label>
+
+              <div id="dropzone" class="dropzone" tabindex="0">
+                <p>Dateien hierher ziehen oder klicken zum Auswählen</p>
+                <input id="file-input" type="file" multiple class="hidden" />
+              </div>
+
+              <ul id="selected-files" class="selected-files-list hidden"></ul>
+              <div id="upload-limit-error" class="alert-error hidden"></div>
+
+              <div id="upload-progress-box" class="progress-box hidden">
+                <div class="progress-header">
+                  <span id="upload-progress-label">Bereite Upload vor...</span>
+                  <strong id="upload-progress-percent">0 %</strong>
+                </div>
+                <div class="storage-bar-track">
+                  <div id="upload-progress-fill" class="storage-bar-fill"></div>
+                </div>
+              </div>
+
+              <button id="upload-btn" class="btn btn-primary" type="submit" disabled>Hochladen</button>
+            </form>
+          </div>
+        </div>
+
+        <!-- Vorhandene Dateien verwalten -->
+        <div class="admin-card">
+          <div class="card-header-row">
+            <div>
+              <h3>Dateien verwalten</h3>
+              <p class="muted-text">Vorhandene Dateien in GitHub Releases direkt löschen.</p>
+            </div>
+            <button id="refresh-files-btn" class="btn btn-secondary" type="button">Aktualisieren</button>
+          </div>
+          <div id="admin-file-list" class="admin-file-list"></div>
+        </div>
+        <!-- Chat-Nachrichten verwalten -->
+        <div class="admin-card">
+          <div class="card-header-row">
+            <div>
+              <h3>OGL Chat — Nachrichten</h3>
+              <p class="muted-text">Nachrichten einzeln oder komplett entfernen (wirkt sofort).</p>
+            </div>
+            <div class="header-actions">
+              <button id="refresh-chat-btn" class="btn btn-secondary" type="button">Aktualisieren</button>
+              <button id="clear-chat-btn" class="btn btn-danger" type="button">Alle löschen</button>
+            </div>
+          </div>
+          <div id="admin-chat-list" class="admin-file-list"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <script type="module" src="./js/admin.js?v=13"></script>
+</body>
+</html>
