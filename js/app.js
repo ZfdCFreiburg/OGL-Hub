@@ -284,38 +284,12 @@ function renderFiles() {
     const actions = document.createElement("div");
     actions.className = "file-actions";
 
-    if (isPreviewable(file.ext)) {
-      const previewBtn = document.createElement("button");
-      previewBtn.type = "button";
-      previewBtn.className = "btn btn-secondary";
-      previewBtn.textContent = "Vorschau";
-      previewBtn.addEventListener("click", () => openPreview(file));
-      actions.appendChild(previewBtn);
-    }
-
     const dl = document.createElement("a");
     dl.className = "btn btn-primary";
     dl.href = encodeURI(file.url);
     dl.download = file.name;
     dl.textContent = "Download";
     actions.appendChild(dl);
-
-    const copyBtn = document.createElement("button");
-    copyBtn.type = "button";
-    copyBtn.className = "icon-btn";
-    copyBtn.title = "Direktlink kopieren";
-    copyBtn.setAttribute("aria-label", "Direktlink kopieren");
-    copyBtn.textContent = "🔗";
-    copyBtn.addEventListener("click", async () => {
-      const absoluteUrl = new URL(encodeURI(file.url), window.location.href).href;
-      try {
-        await navigator.clipboard.writeText(absoluteUrl);
-        showToast("Link in Zwischenablage kopiert");
-      } catch {
-        showToast("Kopieren nicht unterstützt");
-      }
-    });
-    actions.appendChild(copyBtn);
 
     card.append(top, actions);
     return card;
