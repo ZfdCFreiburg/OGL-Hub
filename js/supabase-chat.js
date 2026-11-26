@@ -21,7 +21,6 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
 
   const roomEl = document.getElementById("chat-room");
   const currentNameEl = document.getElementById("chat-current-name");
-  const colorPickerEl = document.getElementById("chat-color-picker");
   const changeNameBtn = document.getElementById("chat-change-name");
   const pinnedEl = document.getElementById("chat-pinned");
 
@@ -89,10 +88,10 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
   [NAME_KEY, NAME_TIME_KEY, AVATAR_KEY, COLOR_KEY, LAST_SEEN_KEY, REACTED_KEY, CODE_KEY].forEach(
     (k) => localStorage.removeItem(k)
   );
+  sessionStorage.removeItem(COLOR_KEY);
 
   const room = supabaseConfig.roomName || "general";
   let lastSentAt = 0;
-  let chosenColor = (sessionStorage.getItem(COLOR_KEY) || "").trim();
   let chosenAvatar = (sessionStorage.getItem(AVATAR_KEY) || "").trim();
   let lastSeenAt = Number(sessionStorage.getItem(LAST_SEEN_KEY) || 0);
   let isAdminUser = false;
@@ -227,26 +226,6 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
     return PASTEL_PALETTE[hash % PASTEL_PALETTE.length];
   }
 
-  function renderColorPicker() {
-    if (!colorPickerEl) return;
-    const activeColor = chosenColor || getPastelForName(authorName);
-    colorPickerEl.replaceChildren(
-      ...PASTEL_PALETTE.map((hex) => {
-        const btn = document.createElement("button");
-        btn.type = "button";
-        btn.className = `chat-color-dot ${activeColor === hex ? "active" : ""}`;
-        btn.style.background = hex;
-        btn.title = "Farbe wählen";
-        btn.addEventListener("click", () => {
-          chosenColor = hex;
-          sessionStorage.setItem(COLOR_KEY, hex);
-          renderColorPicker();
-        });
-        return btn;
-      })
-    );
-  }
-
   function renderAvatarPicker() {
     if (!avatarPickerEl) return;
     avatarPickerEl.replaceChildren(
@@ -271,7 +250,6 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
       joinForm.classList.add("hidden");
       roomEl.classList.remove("hidden");
       currentNameEl.textContent = authorName;
-      renderColorPicker();
       messagesEl.scrollTop = messagesEl.scrollHeight;
     } else {
       roomEl.classList.add("hidden");
@@ -342,11 +320,16 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
       pills.push(btn);
     }
 
+    container.replaceChildren(...pills);
+    container.classList.toggle("hidden", pills.length === 0);
+  }
+
+  function createReactionTrigger(msgId) {
     const addWrap = document.createElement("span");
     addWrap.className = "chat-react-add-wrap";
     const addBtn = document.createElement("button");
     addBtn.type = "button";
-    addBtn.className = "chat-react-add";
+    addBtn.className = "chat-msg-action chat-react-add";
     addBtn.title = "Reagieren";
     addBtn.textContent = "+";
 
@@ -357,7 +340,8 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
       pick.type = "button";
       pick.className = "chat-react-pick";
       pick.textContent = emoji;
-      pick.addEventListener("click", () => {
+      pick.addEventListener("click", (e) => {
+        e.stopPropagation();
         menu.classList.add("hidden");
         toggleReaction(msgId, emoji);
       });
@@ -366,11 +350,13 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
 
     addBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      menu.classList.toggle("hidden");
+      const wasHidden = menu.classList.contains("hidden");
+      messagesEl.querySelectorAll(".chat-react-menu").forEach((m) => m.classList.add("hidden"));
+      if (wasHidden) menu.classList.remove("hidden");
     });
 
     addWrap.append(addBtn, menu);
-    container.replaceChildren(...pills, addWrap);
+    return addWrap;
   }
 
   async function toggleReaction(msgId, emoji) {
@@ -459,27 +445,30 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
     appendFormattedText(body, msg.content);
     bodyRow.appendChild(body);
 
-    if (isAdminUser && msg.id) {
+    if (msg.id) {
       const actions = document.createElement("span");
       actions.className = "chat-msg-actions";
+      actions.appendChild(createReactionTrigger(msg.id));
 
-      const pinBtn = document.createElement("button");
-      pinBtn.type = "button";
-      pinBtn.className = "chat-msg-action";
-      pinBtn.title = "Anpinnen";
-      pinBtn.innerHTML = PIN_SVG;
-      pinBtn.addEventListener("click", () =>
-        adminPinMessage(`${msg.author}: ${msg.content}`.slice(0, 300))
-      );
+      if (isAdminUser) {
+        const pinBtn = document.createElement("button");
+        pinBtn.type = "button";
+        pinBtn.className = "chat-msg-action";
+        pinBtn.title = "Anpinnen";
+        pinBtn.innerHTML = PIN_SVG;
+        pinBtn.addEventListener("click", () =>
+          adminPinMessage(`${msg.author}: ${msg.content}`.slice(0, 300))
+        );
 
-      const delBtn = document.createElement("button");
-      delBtn.type = "button";
-      delBtn.className = "chat-msg-action chat-msg-delete";
-      delBtn.title = "Löschen";
-      delBtn.innerHTML = TRASH_SVG;
-      delBtn.addEventListener("click", () => adminDeleteMessage(msg.id));
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "chat-msg-action chat-msg-delete";
+        delBtn.title = "Löschen";
+        delBtn.innerHTML = TRASH_SVG;
+        delBtn.addEventListener("click", () => adminDeleteMessage(msg.id));
 
-      actions.append(pinBtn, delBtn);
+        actions.append(pinBtn, delBtn);
+      }
       bodyRow.appendChild(actions);
     }
 
@@ -585,7 +574,7 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
         p_code: workshopCode || "",
         p_author: authorName,
         p_content: content,
-        p_color: chosenColor || getPastelForName(authorName),
+        p_color: getPastelForName(authorName),
         p_avatar: chosenAvatar || "",
       });
       if (error) throw error;
