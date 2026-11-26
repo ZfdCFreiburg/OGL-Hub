@@ -12,6 +12,7 @@ const state = {
   selectedFiles: [],
   repoSizeBytes: 0,
   isSessionLive: false,
+  chatInitialized: false,
 };
 
 const el = {
@@ -134,6 +135,20 @@ function updateWorkshopStatusLabel(active, startedAt) {
   updateSaveConfigState();
 }
 
+async function initAdminChat() {
+  if (state.chatInitialized || !state.isSessionLive) return;
+  if (!CONFIG.supabase?.enabled || !CONFIG.supabase?.url || !CONFIG.supabase?.anonKey) return;
+  state.chatInitialized = true;
+  const { initSupabaseChat } = await import("./supabase-chat.js?v=32");
+  await initSupabaseChat(
+    CONFIG.supabase,
+    el.cfgChatCode.value.trim(),
+    null,
+    null,
+    el.cfgLeader.value.trim()
+  );
+}
+
 async function endWorkshopSession() {
   if (state.mode !== "supabase" || !state.supabaseClient) return;
   if (!confirm("Aktuellen Workshop beenden? Alle Teilnehmer werden abgemeldet.")) return;
@@ -153,6 +168,7 @@ async function endWorkshopSession() {
     if (error) throw error;
     await broadcastChatEvent("session_updated", { active: false });
     updateWorkshopStatusLabel(false, null);
+    document.getElementById("chat-widget")?.classList.add("hidden");
     showToast("Workshop beendet – Teilnehmer abgemeldet");
   } catch (err) {
     showToast(`Fehler: ${err.message}`);
@@ -167,6 +183,7 @@ async function openDashboard() {
   await Promise.all([loadSiteConfig(), loadRepoFiles(), loadChatCode(), loadAdminLinks()]);
   state.savedConfigSnapshot = currentConfigSnapshot();
   updateSaveConfigState();
+  await initAdminChat();
 }
 
 async function loadAdminLinks() {
@@ -442,6 +459,8 @@ async function saveSiteConfig(e) {
     await broadcastChatEvent("clear_all");
     await broadcastChatEvent("session_updated", { active: true, session_id: newSessionId });
     updateWorkshopStatusLabel(true, now);
+    document.getElementById("chat-widget")?.classList.remove("hidden");
+    await initAdminChat();
     state.savedConfigSnapshot = currentConfigSnapshot();
     showToast("Workshop gestartet (max. 24 Std.) – Chat & alte Sessions zurückgesetzt");
   } catch (err) {
@@ -845,6 +864,7 @@ function bindEvents() {
     el.passwordInput.value = "";
     el.dashboardSection.classList.add("hidden");
     el.logoutBtn.classList.add("hidden");
+    document.getElementById("chat-widget")?.classList.add("hidden");
     el.loginSection.classList.remove("hidden");
   });
 
