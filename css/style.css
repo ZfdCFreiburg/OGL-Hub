@@ -1185,7 +1185,7 @@ body {
 
   .chat-widget {
     right: 12px;
-    bottom: 58px;
+    bottom: max(12px, env(safe-area-inset-bottom));
   }
 
   .chat-widget:not(.collapsed) {
