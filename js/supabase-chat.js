@@ -813,8 +813,6 @@ export async function initSupabaseChat(
         em === "zfdc@janboelmann.de" ||
         em === "admin@ogl-hub.local" ||
         gh === "zfdcfreiburg";
-      document.getElementById("chat-admin-join-hint")?.classList.toggle("hidden", !isAdminUser);
-      document.getElementById("chat-admin-room-hint")?.classList.toggle("hidden", !isAdminUser);
       if (isAdminUser && !authorName && String(defaultLeaderName || "").trim()) {
         authorName = String(defaultLeaderName).trim().slice(0, 40);
         sessionStorage.setItem(NAME_KEY, authorName);

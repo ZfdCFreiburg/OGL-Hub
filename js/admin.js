@@ -55,6 +55,10 @@ const el = {
   addLinkBtn: document.getElementById("add-link-btn"),
   adminLinkList: document.getElementById("admin-link-list"),
   toast: document.getElementById("toast"),
+  footerLinks: document.getElementById("footer-links"),
+  footerProvider: document.getElementById("footer-provider"),
+  footerProviderLabel: document.getElementById("footer-provider-label"),
+  footerProviderLogo: document.getElementById("footer-provider-logo"),
 };
 
 function initHeaderBranding() {
@@ -68,6 +72,34 @@ function initHeaderBranding() {
     img.alt = branding.name;
     el.brandLogo.classList.add("has-image");
     el.brandLogo.replaceChildren(img);
+  }
+
+  if (branding.footerProvider?.logoUrl && el.footerProvider) {
+    const labelLines = (branding.footerProvider.label || "Bereitgestellt durch").split("\n");
+    el.footerProviderLabel.replaceChildren();
+    labelLines.forEach((line, idx) => {
+      if (idx > 0) el.footerProviderLabel.appendChild(document.createElement("br"));
+      el.footerProviderLabel.appendChild(document.createTextNode(line));
+    });
+    el.footerProviderLogo.src = branding.footerProvider.logoUrl;
+    el.footerProviderLogo.alt = branding.footerProvider.alt || "";
+    if (branding.footerProvider.url) {
+      el.footerProvider.href = branding.footerProvider.url;
+    }
+    el.footerProvider.classList.remove("hidden");
+  }
+
+  if (el.footerLinks) {
+    el.footerLinks.replaceChildren(
+      ...(branding.footerLinks || []).map((link) => {
+        const a = document.createElement("a");
+        a.href = link.url;
+        a.textContent = link.label;
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        return a;
+      })
+    );
   }
 }
 

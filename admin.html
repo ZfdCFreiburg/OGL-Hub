@@ -164,6 +164,26 @@
         </div>
       </section>
     </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div class="footer-left">
+          <a href="./" class="footer-login-link" title="Zur Nutzeransicht" aria-label="Zur Nutzeransicht">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+              <line x1="8" y1="21" x2="16" y2="21" />
+              <line x1="12" y1="17" x2="12" y2="21" />
+            </svg>
+          </a>
+          <nav id="footer-links" class="footer-links" aria-label="Rechtliches"></nav>
+        </div>
+        <a id="footer-provider" class="footer-provider hidden" href="https://zfdc.ph-freiburg.de" target="_blank" rel="noopener noreferrer">
+          <span id="footer-provider-label" class="footer-provider-label"></span>
+          <img id="footer-provider-logo" class="footer-provider-logo" alt="" />
+        </a>
+      </div>
+    </footer>
   </div>
 
   <!-- Aufklappbares Chat-Widget unten rechts (Supabase Realtime) -->
@@ -190,7 +210,6 @@
     <div id="chat-panel" class="chat-panel hidden">
       <!-- Namensabfrage vor Teilnahme -->
       <form id="chat-join-form" class="chat-join-box">
-        <p id="chat-admin-join-hint" class="chat-admin-hint hidden">Du bist Workshop-Leitung</p>
         <p class="chat-join-text">Gib deinen Namen ein, um am Chat teilzunehmen:</p>
         <input id="chat-join-name" type="text" class="chat-author-input" placeholder="Dein Name" maxlength="40"
           required />
@@ -205,7 +224,7 @@
       <!-- Aktiver Chat -->
       <div id="chat-room" class="chat-room hidden">
         <div class="chat-room-meta">
-          <span>Dabei als <strong id="chat-current-name"></strong> <span id="chat-admin-room-hint" class="chat-admin-badge hidden">Du bist Workshop-Leitung</span></span>
+          <span>Dabei als <strong id="chat-current-name"></strong></span>
           <div class="chat-meta-actions">
             <button id="chat-change-name" class="chat-link-btn" type="button">Name ändern</button>
           </div>

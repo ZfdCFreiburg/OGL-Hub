@@ -4,6 +4,7 @@ const state = {
   files: [],
   generatedAt: null,
   siteConfig: {},
+  isAdmin: false,
   search: "",
   category: "all",
   type: "all",
@@ -566,7 +567,13 @@ function setHeaderSessionVisible(visible) {
   const pageTitle = (state.siteConfig?.pageTitle || "").trim();
   const workshopLeader = (state.siteConfig?.workshopLeader || "").trim();
   el.pageTitle.classList.toggle("hidden", !visible || !pageTitle);
-  el.workshopLeader.classList.toggle("hidden", !visible || !workshopLeader);
+  if (visible && state.isAdmin) {
+    el.workshopLeaderName.textContent = "Du bist Workshop-Leitung";
+    el.workshopLeader.classList.remove("hidden");
+  } else {
+    el.workshopLeaderName.textContent = workshopLeader;
+    el.workshopLeader.classList.toggle("hidden", !visible || !workshopLeader);
+  }
 }
 
 function renderWorkshopGate(isActive) {
@@ -663,6 +670,22 @@ function lockPortal(reason = "") {
 }
 
 async function unlockPortal(code, sbClient = null, room = "general") {
+  if (sbClient) {
+    try {
+      const { data: sessionData } = await sbClient.auth.getSession();
+      const u = sessionData?.session?.user;
+      if (u) {
+        const em = (u.email || "").toLowerCase();
+        const gh = (u.user_metadata?.user_name || "").toLowerCase();
+        state.isAdmin =
+          em === "zfdc@janboelmann.de" ||
+          em === "admin@ogl-hub.local" ||
+          gh === "zfdcfreiburg";
+      }
+    } catch {
+      state.isAdmin = false;
+    }
+  }
   setHeaderSessionVisible(true);
   el.portalGate.classList.add("hidden");
   el.portalContent.classList.remove("hidden");
