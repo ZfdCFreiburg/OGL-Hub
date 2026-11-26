@@ -32,6 +32,7 @@ const el = {
   saveConfigBtn: document.getElementById("save-config-btn"),
   showQrBtn: document.getElementById("show-qr-btn"),
   cfgChatCode: document.getElementById("cfg-chat-code"),
+  genCodeBtn: document.getElementById("gen-code-btn"),
   uploadForm: document.getElementById("upload-form"),
   uploadFolder: document.getElementById("upload-folder"),
   folderSuggestions: document.getElementById("folder-suggestions"),
@@ -805,6 +806,12 @@ function bindEvents() {
 
   el.configForm.addEventListener("submit", saveSiteConfig);
   el.showQrBtn.addEventListener("click", openQrTab);
+  el.genCodeBtn?.addEventListener("click", () => {
+    const bytes = new Uint8Array(4);
+    crypto.getRandomValues(bytes);
+    el.cfgChatCode.value = "OGL" + Array.from(bytes, (b) => String(b % 10)).join("");
+    updateSaveConfigState();
+  });
   [el.cfgPageTitle, el.cfgChatCode, el.cfgLeader, el.cfgDescription].forEach((input) => {
     input.addEventListener("input", updateSaveConfigState);
   });

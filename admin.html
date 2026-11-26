@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
   <title>OGL Hub Admin</title>
   <link rel="icon" type="image/png" href="./assets/favicon.png" />
   <link rel="stylesheet" href="./css/style.css?v=30" />
@@ -82,7 +83,10 @@
               </label>
               <label class="field-label">
                 Workshop-Code
-                <input id="cfg-chat-code" type="text" class="search-input" placeholder="z. B. ogl2026" maxlength="64" required />
+                <div class="code-input-row">
+                  <input id="cfg-chat-code" type="text" class="search-input" placeholder="z. B. ogl2026" maxlength="64" required />
+                  <button id="gen-code-btn" class="btn btn-secondary" type="button" title="Starken Zufallscode erzeugen">Zufallscode</button>
+                </div>
               </label>
               <label class="field-label">
                 Name der Workshopleitung (optional)

@@ -303,6 +303,14 @@ $$;
 
 grant execute on function public.chat_react_message(text, text, bigint, text, int) to anon, authenticated;
 
+create table if not exists public.portal_code_attempts (
+  id bigserial primary key,
+  room text not null,
+  attempted_at timestamptz not null default now()
+);
+
+alter table public.portal_code_attempts enable row level security;
+
 create or replace function public.verify_portal_code(p_room text default 'general', p_code text default '')
 returns boolean
 language plpgsql
@@ -311,9 +319,30 @@ set search_path = public
 as $$
 declare
   v_code text;
+  v_fails int;
+  v_ok boolean;
 begin
+  delete from public.portal_code_attempts
+  where attempted_at < now() - interval '10 minutes';
+
+  select count(*) into v_fails
+  from public.portal_code_attempts
+  where room = p_room and attempted_at > now() - interval '5 minutes';
+
+  if v_fails >= 15 then
+    raise exception 'Zu viele Fehlversuche – bitte 5 Minuten warten.';
+  end if;
+
   select workshop_code into v_code from public.chat_settings where room = p_room;
-  return coalesce(v_code, '') <> '' and coalesce(p_code, '') = v_code;
+  v_ok := coalesce(v_code, '') <> '' and coalesce(p_code, '') = v_code;
+
+  if v_ok then
+    delete from public.portal_code_attempts where room = p_room;
+    return true;
+  end if;
+
+  insert into public.portal_code_attempts (room) values (p_room);
+  return false;
 end;
 $$;
 
