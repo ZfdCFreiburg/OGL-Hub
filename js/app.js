@@ -647,7 +647,7 @@ function lockPortal(reason = "") {
   el.portalGate.classList.remove("hidden");
   el.portalGateForm.classList.add("hidden");
   el.portalGateBtn.disabled = false;
-  el.portalGateBtn.textContent = "Freischalten";
+  el.portalGateBtn.textContent = "Beitreten";
   el.gateIndicator?.classList.add("hidden");
   el.gateIndicator?.classList.remove("verifying", "success", "error");
   el.gateCheck?.classList.add("hidden");
@@ -788,13 +788,13 @@ async function init() {
           el.portalGateError.textContent = "Falscher Workshop-Code.";
           el.portalGateError.classList.remove("hidden");
           el.portalGateBtn.disabled = false;
-          el.portalGateBtn.textContent = "Freischalten";
+          el.portalGateBtn.textContent = "Beitreten";
           return;
         }
 
         el.gateIndicator.classList.add("success");
         el.gateCheck.classList.remove("hidden");
-        el.portalGateBtn.textContent = "Freigeschaltet";
+        el.portalGateBtn.textContent = "Beigetreten";
         localStorage.setItem(PORTAL_CODE_KEY, entered);
         await new Promise((r) => setTimeout(r, 720));
         await unlockPortal(entered, sbClient, room);
@@ -805,7 +805,7 @@ async function init() {
         el.portalGateError.textContent = err.message || "Prüfung fehlgeschlagen";
         el.portalGateError.classList.remove("hidden");
         el.portalGateBtn.disabled = false;
-        el.portalGateBtn.textContent = "Freischalten";
+        el.portalGateBtn.textContent = "Beitreten";
       }
     });
   } catch {

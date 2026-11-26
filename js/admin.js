@@ -415,7 +415,7 @@ async function saveSiteConfig(e) {
     const room = CONFIG.supabase.roomName || "general";
     const now = new Date().toISOString();
     const newSessionId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
-    const [siteRes, codeRes] = await Promise.all([
+    const [siteRes, codeRes, chatRes] = await Promise.all([
       state.supabaseClient.from("site_settings").upsert({
         id: "default",
         page_title: el.cfgPageTitle.value.trim(),
@@ -426,22 +426,26 @@ async function saveSiteConfig(e) {
       state.supabaseClient.from("chat_settings").upsert({
         room,
         workshop_code: code,
+        pinned_message: "",
         session_active: true,
         session_started_at: now,
         session_id: newSessionId,
         updated_at: now,
       }),
+      state.supabaseClient.from("chat_messages").delete().eq("room", room),
     ]);
     if (siteRes.error) throw siteRes.error;
     if (codeRes.error) throw codeRes.error;
+    if (chatRes.error) throw chatRes.error;
+    await broadcastChatEvent("clear_all");
     await broadcastChatEvent("session_updated", { active: true, session_id: newSessionId });
     updateWorkshopStatusLabel(true, now);
     state.savedConfigSnapshot = currentConfigSnapshot();
-    showToast("Workshop gestartet (max. 24 Std.) – alte Sessions abgemeldet");
+    showToast("Workshop gestartet (max. 24 Std.) – Chat & alte Sessions zurückgesetzt");
   } catch (err) {
     showToast(`Fehler: ${err.message}`);
   } finally {
-    el.saveConfigBtn.textContent = "Workshop starten / speichern";
+    el.saveConfigBtn.textContent = "Workshop starten";
     updateSaveConfigState();
   }
 }
@@ -489,9 +493,7 @@ async function loginWithSupabase(identifier, password) {
 
   try {
     const raw = String(identifier || "").trim();
-    const email = raw.includes("@")
-      ? raw
-      : usernameMap?.[raw.toLowerCase()] || "";
+    const email = usernameMap?.[raw.toLowerCase()] || "";
     if (!email) {
       throw new Error("Unbekannter Benutzername.");
     }

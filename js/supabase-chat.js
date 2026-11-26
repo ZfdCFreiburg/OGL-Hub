@@ -812,6 +812,8 @@ export async function initSupabaseChat(
         em === "zfdc@janboelmann.de" ||
         em === "admin@ogl-hub.local" ||
         gh === "zfdcfreiburg";
+      document.getElementById("chat-admin-join-hint")?.classList.toggle("hidden", !isAdminUser);
+      document.getElementById("chat-admin-room-hint")?.classList.toggle("hidden", !isAdminUser);
     }
 
     const { data: statusData } = await client.rpc("chat_status", { p_room: room });

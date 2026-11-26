@@ -43,9 +43,7 @@ export const CONFIG = {
     allowedEmails: ["zfdc@janboelmann.de", "admin@ogl-hub.local"],
     // Benutzernamen-Zuordnung für den Login auf admin.html (ohne @-Adresse)
     usernameMap: {
-      zfdc: "admin@ogl-hub.local",
-      zfdcfreiburg: "admin@ogl-hub.local",
-      admin: "admin@ogl-hub.local",
+      oglteam: "admin@ogl-hub.local",
     },
     // Fallback bei direkter Token-Anmeldung: Nur diese GitHub-Benutzernamen sind erlaubt
     allowedUsers: ["ZfdCFreiburg"],

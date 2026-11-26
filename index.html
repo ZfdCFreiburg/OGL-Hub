@@ -14,7 +14,7 @@
   <link rel="icon" type="image/png" href="./assets/favicon.png" />
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#ffffff" />
-  <link rel="stylesheet" href="./css/style.css?v=39" />
+  <link rel="stylesheet" href="./css/style.css?v=40" />
 </head>
 
 <body>
@@ -70,7 +70,7 @@
           <input id="portal-code-input" type="password" class="search-input" placeholder="Workshop-Code eingeben"
             autocomplete="off" required />
           <div id="portal-gate-error" class="alert-error hidden"></div>
-          <button id="portal-gate-btn" class="btn btn-primary" type="submit">Freischalten</button>
+          <button id="portal-gate-btn" class="btn btn-primary" type="submit">Beitreten</button>
         </form>
       </section>
 
@@ -186,6 +186,7 @@
     <div id="chat-panel" class="chat-panel hidden">
       <!-- Namensabfrage vor Teilnahme -->
       <form id="chat-join-form" class="chat-join-box">
+        <p id="chat-admin-join-hint" class="chat-admin-hint hidden">Du bist Workshop-Leitung</p>
         <p class="chat-join-text">Gib deinen Namen ein, um am Chat teilzunehmen:</p>
         <input id="chat-join-name" type="text" class="chat-author-input" placeholder="Dein Name" maxlength="40"
           required />
@@ -200,7 +201,7 @@
       <!-- Aktiver Chat -->
       <div id="chat-room" class="chat-room hidden">
         <div class="chat-room-meta">
-          <span>Dabei als <strong id="chat-current-name"></strong></span>
+          <span>Dabei als <strong id="chat-current-name"></strong> <span id="chat-admin-room-hint" class="chat-admin-badge hidden">Du bist Workshop-Leitung</span></span>
           <div class="chat-meta-actions">
             <button id="chat-change-name" class="chat-link-btn" type="button">Name ändern</button>
           </div>
