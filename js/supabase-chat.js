@@ -7,7 +7,8 @@ export async function initSupabaseChat(
   supabaseConfig,
   initialPortalCode = "",
   onFilesUpdated = null,
-  onSessionInvalidated = null
+  onSessionInvalidated = null,
+  defaultLeaderName = ""
 ) {
   const widget = document.getElementById("chat-widget");
   const bar = document.getElementById("chat-bar");
@@ -814,6 +815,11 @@ export async function initSupabaseChat(
         gh === "zfdcfreiburg";
       document.getElementById("chat-admin-join-hint")?.classList.toggle("hidden", !isAdminUser);
       document.getElementById("chat-admin-room-hint")?.classList.toggle("hidden", !isAdminUser);
+      if (isAdminUser && !authorName && String(defaultLeaderName || "").trim()) {
+        authorName = String(defaultLeaderName).trim().slice(0, 40);
+        sessionStorage.setItem(NAME_KEY, authorName);
+        if (isOpen) syncParticipantView();
+      }
     }
 
     const { data: statusData } = await client.rpc("chat_status", { p_room: room });

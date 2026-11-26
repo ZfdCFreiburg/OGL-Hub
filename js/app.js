@@ -501,7 +501,8 @@ async function initOptionalChat(portalCode = "", sbClient = null, room = "genera
           lockPortal(err?.message || "Workshop-Session beendet.");
         }
       }
-    }
+    },
+    (state.siteConfig?.workshopLeader || "").trim()
   );
 }
 

@@ -11,7 +11,7 @@ const state = {
   savedConfigSnapshot: "",
   selectedFiles: [],
   repoSizeBytes: 0,
-  heartbeatTimer: null,
+  isSessionLive: false,
 };
 
 const el = {
@@ -109,27 +109,29 @@ function currentConfigSnapshot() {
 function updateSaveConfigState() {
   const title = el.cfgPageTitle.value.trim();
   const code = el.cfgChatCode.value.trim();
-  el.saveConfigBtn.disabled = !title || !code;
-  const isSaved = currentConfigSnapshot() === state.savedConfigSnapshot && Boolean(title) && Boolean(code);
-  el.showQrBtn.disabled = !isSaved;
+  el.saveConfigBtn.disabled = state.isSessionLive || !title || !code;
+  el.showQrBtn.disabled = !state.isSessionLive;
+  if (el.endWorkshopBtn) el.endWorkshopBtn.disabled = !state.isSessionLive;
 }
 
 function updateWorkshopStatusLabel(active, startedAt) {
   if (!el.workshopStatusText) return;
   if (!active || !startedAt) {
+    state.isSessionLive = false;
     el.workshopStatusText.textContent = "Status: Aktuell kein Workshop aktiv.";
-    if (el.endWorkshopBtn) el.endWorkshopBtn.disabled = true;
+    updateSaveConfigState();
     return;
   }
   const expiresMs = new Date(startedAt).getTime() + 24 * 60 * 60 * 1000;
   const remHours = Math.max(0, Math.ceil((expiresMs - Date.now()) / (60 * 60 * 1000)));
   if (remHours <= 0) {
+    state.isSessionLive = false;
     el.workshopStatusText.textContent = "Status: Abgelaufen (max. 24 Std.).";
-    if (el.endWorkshopBtn) el.endWorkshopBtn.disabled = true;
   } else {
+    state.isSessionLive = true;
     el.workshopStatusText.textContent = `Status: Workshop aktiv (noch ca. ${remHours} Std.)`;
-    if (el.endWorkshopBtn) el.endWorkshopBtn.disabled = false;
   }
+  updateSaveConfigState();
 }
 
 async function endWorkshopSession() {
