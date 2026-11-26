@@ -45,14 +45,12 @@ const el = {
   uploadProgressPercent: document.getElementById("upload-progress-percent"),
   uploadProgressFill: document.getElementById("upload-progress-fill"),
   uploadBtn: document.getElementById("upload-btn"),
-  refreshFilesBtn: document.getElementById("refresh-files-btn"),
   adminFileList: document.getElementById("admin-file-list"),
   linkForm: document.getElementById("link-form"),
   linkTitle: document.getElementById("link-title"),
   linkUrl: document.getElementById("link-url"),
   linkFolder: document.getElementById("link-folder"),
   addLinkBtn: document.getElementById("add-link-btn"),
-  refreshLinksBtn: document.getElementById("refresh-links-btn"),
   adminLinkList: document.getElementById("admin-link-list"),
   toast: document.getElementById("toast"),
 };
@@ -816,9 +814,7 @@ function bindEvents() {
     input.addEventListener("input", updateSaveConfigState);
   });
   el.uploadForm.addEventListener("submit", uploadFiles);
-  el.refreshFilesBtn.addEventListener("click", loadRepoFiles);
   el.linkForm.addEventListener("submit", addAdminLink);
-  el.refreshLinksBtn.addEventListener("click", loadAdminLinks);
 
   el.dropzone.addEventListener("click", () => el.fileInput.click());
   el.dropzone.addEventListener("keydown", (e) => {
