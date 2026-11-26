@@ -53,14 +53,13 @@ export async function initSupabaseChat(
   ];
 
   const AVATARS = {
-    "": { label: "Kein Avatar", svg: `<span style="font-size:0.7rem;color:var(--text-muted)">—</span>` },
     gamepad: {
       label: "Controller",
       svg: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="13" x2="15.01" y2="13"/><line x1="18" y1="11" x2="18.01" y2="11"/><rect x="2" y="6" width="20" height="12" rx="5"/></svg>`,
     },
     rocket: {
       label: "Raumschiff",
-      svg: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/></svg>`,
+      svg: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c3.5 3.2 5 7 5 11l-5 2-5-2c0-4 1.5-7.8 5-11z"/><circle cx="12" cy="10" r="1.5"/><path d="M7 11l-3 3v3l3-1"/><path d="M17 11l3 3v3l-3-1"/><path d="M10 17l2 4 2-4"/></svg>`,
     },
     ghost: {
       label: "Arcade-Geist",
@@ -247,7 +246,7 @@ export async function initSupabaseChat(
         btn.title = info.label;
         btn.innerHTML = info.svg;
         btn.addEventListener("click", () => {
-          chosenAvatar = key;
+          chosenAvatar = chosenAvatar === key ? "" : key;
           renderAvatarPicker();
         });
         return btn;
@@ -255,8 +254,20 @@ export async function initSupabaseChat(
     );
   }
 
-  function syncParticipantView() {
+  function resolveLeaderName() {
+    const raw = typeof defaultLeaderName === "function" ? defaultLeaderName() : defaultLeaderName;
+    return String(raw || "").trim().slice(0, 40);
+  }
+
+  function syncParticipantView(allowLeaderAutoFill = true) {
     authorName = readSavedName();
+    if (!authorName && isAdminUser && allowLeaderAutoFill) {
+      const leader = resolveLeaderName();
+      if (leader) {
+        authorName = leader;
+        sessionStorage.setItem(NAME_KEY, authorName);
+      }
+    }
     if (authorName) {
       joinForm.classList.add("hidden");
       roomEl.classList.remove("hidden");
@@ -722,7 +733,7 @@ export async function initSupabaseChat(
     joinNameInput.value = authorName;
     authorName = "";
     sessionStorage.removeItem(NAME_KEY);
-    syncParticipantView();
+    syncParticipantView(false);
     joinNameInput.focus();
   });
 
@@ -813,11 +824,7 @@ export async function initSupabaseChat(
         em === "zfdc@janboelmann.de" ||
         em === "admin@ogl-hub.local" ||
         gh === "zfdcfreiburg";
-      if (isAdminUser && !authorName && String(defaultLeaderName || "").trim()) {
-        authorName = String(defaultLeaderName).trim().slice(0, 40);
-        sessionStorage.setItem(NAME_KEY, authorName);
-        if (isOpen) syncParticipantView();
-      }
+      syncParticipantView();
     }
 
     const { data: statusData } = await client.rpc("chat_status", { p_room: room });

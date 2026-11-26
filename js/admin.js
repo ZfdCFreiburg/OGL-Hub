@@ -177,7 +177,7 @@ async function initAdminChat() {
     el.cfgChatCode.value.trim(),
     null,
     null,
-    el.cfgLeader.value.trim()
+    () => el.cfgLeader.value.trim()
   );
 }
 

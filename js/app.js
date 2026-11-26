@@ -503,7 +503,7 @@ async function initOptionalChat(portalCode = "", sbClient = null, room = "genera
         }
       }
     },
-    (state.siteConfig?.workshopLeader || "").trim()
+    () => (state.siteConfig?.workshopLeader || "").trim()
   );
 }
 
