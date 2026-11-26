@@ -51,7 +51,7 @@ function applyBranding(siteConfig = {}) {
   const description = (siteConfig.description ?? branding.description ?? "").trim();
   const tagline = (siteConfig.tagline ?? branding.tagline ?? "").trim();
 
-  document.title = pageTitle ? `${pageTitle} — ${branding.name}` : branding.name;
+  document.title = "OGL Hub";
   document.documentElement.style.setProperty("--accent", branding.accentColor);
   document.documentElement.style.setProperty("--accent-hover", branding.accentHoverColor);
 

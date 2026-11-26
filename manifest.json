@@ -1,6 +1,7 @@
 {
   "name": "OGL Hub",
   "short_name": "OGL Hub",
+  "description": "Dateien und Chat",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
