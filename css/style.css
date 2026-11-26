@@ -570,8 +570,12 @@ body {
 
 /* Footer */
 .site-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 15;
   border-top: 1px solid var(--border);
-  background: var(--surface);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(10px);
   padding: 8px 0;
   font-size: 0.85rem;
   color: var(--text-muted);
