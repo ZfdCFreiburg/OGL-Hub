@@ -559,6 +559,9 @@ async function init() {
     const sbClient = createClient(sb.url, sb.anonKey);
     const room = sb.roomName || "general";
     const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get("chat") === "1") {
+      document.body.classList.add("chat-standalone");
+    }
     const urlCode = (urlParams.get("code") || "").trim();
     if (urlCode) {
       window.history.replaceState({}, document.title, window.location.pathname);

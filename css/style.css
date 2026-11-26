@@ -797,6 +797,68 @@ body {
   gap: 8px;
 }
 
+.chat-bar-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chat-popout-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.chat-popout-btn:hover {
+  background: rgba(91, 33, 182, 0.1);
+  color: var(--accent);
+}
+
+body.chat-standalone .site-header,
+body.chat-standalone .main-content,
+body.chat-standalone .site-footer {
+  display: none !important;
+}
+
+body.chat-standalone .chat-widget {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+}
+
+body.chat-standalone .chat-bar {
+  cursor: default;
+}
+
+body.chat-standalone .chat-bar:hover {
+  background: var(--surface);
+}
+
+body.chat-standalone .chat-panel {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+
+body.chat-standalone .chat-popout-btn,
+body.chat-standalone .chat-chevron {
+  display: none;
+}
+
 .chat-dot {
   width: 9px;
   height: 9px;

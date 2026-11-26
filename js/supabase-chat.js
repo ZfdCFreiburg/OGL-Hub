@@ -10,8 +10,10 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
   const titleEl = document.getElementById("chat-title");
   const presenceEl = document.getElementById("chat-presence");
   const countEl = document.getElementById("chat-count");
+  const popoutBtn = document.getElementById("chat-popout-btn");
   const chevron = document.getElementById("chat-chevron");
   const panel = document.getElementById("chat-panel");
+  const isStandalone = new URLSearchParams(window.location.search).get("chat") === "1";
 
   const joinForm = document.getElementById("chat-join-form");
   const joinNameInput = document.getElementById("chat-join-name");
@@ -521,7 +523,54 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
     renderMessages(data || []);
   }
 
-  bar.addEventListener("click", toggleWidget);
+  if (!isStandalone) {
+    bar.addEventListener("click", toggleWidget);
+    bar.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleWidget();
+      }
+    });
+  } else {
+    toggleWidget();
+  }
+
+  popoutBtn?.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if ("documentPictureInPicture" in window) {
+      try {
+        if (window.documentPictureInPicture.window) {
+          window.documentPictureInPicture.window.focus();
+          return;
+        }
+        const pipWin = await window.documentPictureInPicture.requestWindow({
+          width: 420,
+          height: 640,
+        });
+        pipWin.document.title = "OGL Chat";
+        document.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
+          const clone = pipWin.document.createElement("link");
+          clone.rel = "stylesheet";
+          clone.href = link.href;
+          pipWin.document.head.appendChild(clone);
+        });
+        pipWin.document.body.className = "chat-standalone";
+        if (!isOpen) toggleWidget();
+        pipWin.document.body.appendChild(widget);
+        pipWin.addEventListener("pagehide", () => {
+          document.body.appendChild(widget);
+        });
+        return;
+      } catch {
+        // Fallback auf normales Popup-Fenster
+      }
+    }
+    window.open(
+      "./?chat=1",
+      "ogl-chat-window",
+      "popup=yes,width=440,height=680,resizable=yes,scrollbars=yes"
+    );
+  });
 
   joinForm.addEventListener("submit", async (e) => {
     e.preventDefault();
