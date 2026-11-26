@@ -6,7 +6,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OGL Hub — Dateiaustausch</title>
   <link rel="icon" type="image/png" href="./assets/favicon.png" />
-  <link rel="stylesheet" href="./css/style.css?v=36" />
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#5b21b6" />
+  <link rel="stylesheet" href="./css/style.css?v=37" />
 </head>
 
 <body>
@@ -164,6 +166,7 @@
         <span id="chat-count" class="chat-count hidden">0</span>
       </span>
       <span class="chat-bar-right">
+        <button id="chat-sound-btn" class="chat-popout-btn" type="button" title="Chat-Ton an/aus" aria-label="Chat-Ton an/aus"></button>
         <button id="chat-popout-btn" class="chat-popout-btn" type="button" title="Chat in eigenem Fenster öffnen" aria-label="Chat in eigenem Fenster öffnen">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
@@ -199,8 +202,11 @@
         </div>
         <div id="chat-pinned" class="chat-pinned hidden"></div>
         <div id="chat-messages" class="chat-messages"></div>
+        <button id="chat-scroll-btn" class="chat-scroll-btn hidden" type="button">↓ Neue Nachrichten</button>
+        <div id="chat-typing" class="chat-typing hidden"></div>
         <div id="chat-inline-notice" class="chat-inline-notice hidden"></div>
         <form id="chat-form" class="chat-form">
+          <div id="chat-reply-bar" class="chat-reply-bar hidden"></div>
           <div class="chat-input-row">
             <input id="chat-input" type="text" class="chat-text-input" placeholder="Nachricht schreiben..."
               maxlength="1000" required />

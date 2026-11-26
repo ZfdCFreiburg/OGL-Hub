@@ -91,6 +91,7 @@ alter table public.chat_messages add column if not exists color text not null de
 alter table public.chat_messages add column if not exists avatar text not null default '';
 alter table public.chat_messages add column if not exists reactions jsonb not null default '{}'::jsonb;
 alter table public.chat_messages add column if not exists is_admin boolean not null default false;
+alter table public.chat_messages add column if not exists reply_to jsonb default null;
 
 create index if not exists idx_chat_messages_room_created
   on public.chat_messages (room, created_at desc);
@@ -153,13 +154,16 @@ begin
 end;
 $$;
 
+drop function if exists public.chat_send_message(text, text, text, text, text, text);
+
 create or replace function public.chat_send_message(
   p_room text,
   p_code text,
   p_author text,
   p_content text,
   p_color text default '',
-  p_avatar text default ''
+  p_avatar text default '',
+  p_reply_to jsonb default null
 )
 returns public.chat_messages
 language plpgsql
@@ -172,6 +176,7 @@ declare
   v_content text := regexp_replace(trim(coalesce(p_content, '')), '\s+', ' ', 'g');
   v_color text := case when coalesce(p_color, '') ~ '^#[0-9a-fA-F]{6}$' then lower(p_color) else '' end;
   v_avatar text := case when coalesce(p_avatar, '') ~ '^[a-z0-9_-]{1,20}$' then lower(p_avatar) else '' end;
+  v_reply_to jsonb := null;
   v_last_author_at timestamptz;
   v_last_content text;
   v_recent_room_count int;
@@ -227,8 +232,16 @@ begin
     raise exception 'Zu viele Nachrichten im Chat – bitte kurz warten';
   end if;
 
-  insert into public.chat_messages (room, author, content, color, avatar, is_admin)
-  values (p_room, v_author, v_content, v_color, v_avatar, v_is_admin)
+  if p_reply_to is not null and coalesce(trim(p_reply_to ->> 'author'), '') <> '' then
+    v_reply_to := jsonb_build_object(
+      'id', p_reply_to ->> 'id',
+      'author', left(trim(p_reply_to ->> 'author'), 40),
+      'preview', left(trim(coalesce(p_reply_to ->> 'preview', '')), 80)
+    );
+  end if;
+
+  insert into public.chat_messages (room, author, content, color, avatar, is_admin, reply_to)
+  values (p_room, v_author, v_content, v_color, v_avatar, v_is_admin, v_reply_to)
   returning * into v_row;
 
   return v_row;
@@ -237,7 +250,7 @@ $$;
 
 grant execute on function public.chat_status(text) to anon, authenticated;
 grant execute on function public.chat_get_messages(text, text) to anon, authenticated;
-grant execute on function public.chat_send_message(text, text, text, text, text, text) to anon, authenticated;
+grant execute on function public.chat_send_message(text, text, text, text, text, text, jsonb) to anon, authenticated;
 
 create or replace function public.chat_react_message(
   p_room text,
