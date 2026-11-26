@@ -3,7 +3,12 @@
  * - Zugeklappt: zeigt Online-Status (grüner Punkt), "OGL Chat" und Nachrichtenanzahl.
  * - Aufgeklappt: fragt nach Name (und Workshop-Code, falls im Admin-Panel gesetzt).
  */
-export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", onFilesUpdated = null) {
+export async function initSupabaseChat(
+  supabaseConfig,
+  initialPortalCode = "",
+  onFilesUpdated = null,
+  onSessionInvalidated = null
+) {
   const widget = document.getElementById("chat-widget");
   const bar = document.getElementById("chat-bar");
   const dot = document.getElementById("chat-online-dot");
@@ -803,10 +808,19 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
     if (sessionUser) {
       const em = (sessionUser.email || "").toLowerCase();
       const gh = (sessionUser.user_metadata?.user_name || "").toLowerCase();
-      isAdminUser = em === "zfdc@janboelmann.de" || gh === "zfdcfreiburg";
+      isAdminUser =
+        em === "zfdc@janboelmann.de" ||
+        em === "admin@ogl-hub.local" ||
+        gh === "zfdcfreiburg";
     }
 
     const { data: statusData } = await client.rpc("chat_status", { p_room: room });
+    if (statusData && statusData.session_active === false) {
+      if (typeof onSessionInvalidated === "function") {
+        onSessionInvalidated({ active: false });
+      }
+      return;
+    }
     codeRequired = Boolean(statusData?.code_required);
     setPinnedMessage(statusData?.pinned_message || "");
 
@@ -870,6 +884,11 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
       })
       .on("broadcast", { event: "files_updated" }, () => {
         if (typeof onFilesUpdated === "function") onFilesUpdated();
+      })
+      .on("broadcast", { event: "session_updated" }, ({ payload }) => {
+        if (typeof onSessionInvalidated === "function") {
+          onSessionInvalidated(payload || {});
+        }
       })
       .subscribe(async (status) => {
         const ok = status === "SUBSCRIBED";

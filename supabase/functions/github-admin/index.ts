@@ -53,7 +53,10 @@ async function requireAdmin(req: Request) {
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) throw new Error("Ungültige Session");
 
-  const adminEmail = (Deno.env.get("ADMIN_EMAIL") || "zfdc@janboelmann.de").toLowerCase();
+  const adminEmails = [
+    (Deno.env.get("ADMIN_EMAIL") || "zfdc@janboelmann.de").toLowerCase(),
+    "admin@ogl-hub.local",
+  ];
   const adminGithub = (Deno.env.get("ADMIN_GITHUB_USER") || "ZfdCFreiburg").toLowerCase();
   const userEmail = (user.email || "").toLowerCase();
   const userGithub = (
@@ -62,7 +65,7 @@ async function requireAdmin(req: Request) {
     ""
   ).toLowerCase();
 
-  if (userEmail !== adminEmail && userGithub !== adminGithub) {
+  if (!adminEmails.includes(userEmail) && userGithub !== adminGithub) {
     throw new Error("Zugriff verweigert");
   }
 }

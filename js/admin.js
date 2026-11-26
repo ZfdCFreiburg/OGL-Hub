@@ -1,6 +1,6 @@
-import { CONFIG } from "../config.js?v=14";
+import { CONFIG } from "../config.js?v=15";
 
-const { owner, repo, branch, allowedUsers, allowedEmails, supabaseFunctionName } = CONFIG.admin;
+const { owner, repo, branch, allowedUsers, allowedEmails, usernameMap, supabaseFunctionName } = CONFIG.admin;
 const STORAGE_KEY = "ogl-admin-token";
 
 const state = {
@@ -11,14 +11,13 @@ const state = {
   savedConfigSnapshot: "",
   selectedFiles: [],
   repoSizeBytes: 0,
+  heartbeatTimer: null,
 };
 
 const el = {
   brandLogo: document.getElementById("brand-logo"),
   loginSection: document.getElementById("login-section"),
   dashboardSection: document.getElementById("dashboard-section"),
-  supabaseOauthBox: document.getElementById("supabase-oauth-box"),
-  supabaseGithubBtn: document.getElementById("supabase-github-btn"),
   supabaseLoginForm: document.getElementById("supabase-login-form"),
   emailInput: document.getElementById("email-input"),
   passwordInput: document.getElementById("password-input"),
@@ -31,6 +30,8 @@ const el = {
   cfgDescription: document.getElementById("cfg-description"),
   saveConfigBtn: document.getElementById("save-config-btn"),
   showQrBtn: document.getElementById("show-qr-btn"),
+  endWorkshopBtn: document.getElementById("end-workshop-btn"),
+  workshopStatusText: document.getElementById("workshop-status-text"),
   cfgChatCode: document.getElementById("cfg-chat-code"),
   genCodeBtn: document.getElementById("gen-code-btn"),
   uploadForm: document.getElementById("upload-form"),
@@ -111,6 +112,50 @@ function updateSaveConfigState() {
   el.saveConfigBtn.disabled = !title || !code;
   const isSaved = currentConfigSnapshot() === state.savedConfigSnapshot && Boolean(title) && Boolean(code);
   el.showQrBtn.disabled = !isSaved;
+}
+
+function updateWorkshopStatusLabel(active, startedAt) {
+  if (!el.workshopStatusText) return;
+  if (!active || !startedAt) {
+    el.workshopStatusText.textContent = "Status: Aktuell kein Workshop aktiv.";
+    if (el.endWorkshopBtn) el.endWorkshopBtn.disabled = true;
+    return;
+  }
+  const expiresMs = new Date(startedAt).getTime() + 24 * 60 * 60 * 1000;
+  const remHours = Math.max(0, Math.ceil((expiresMs - Date.now()) / (60 * 60 * 1000)));
+  if (remHours <= 0) {
+    el.workshopStatusText.textContent = "Status: Abgelaufen (max. 24 Std.).";
+    if (el.endWorkshopBtn) el.endWorkshopBtn.disabled = true;
+  } else {
+    el.workshopStatusText.textContent = `Status: Workshop aktiv (noch ca. ${remHours} Std.)`;
+    if (el.endWorkshopBtn) el.endWorkshopBtn.disabled = false;
+  }
+}
+
+async function endWorkshopSession() {
+  if (state.mode !== "supabase" || !state.supabaseClient) return;
+  if (!confirm("Aktuellen Workshop beenden? Alle Teilnehmer werden abgemeldet.")) return;
+  el.endWorkshopBtn.disabled = true;
+  try {
+    const room = CONFIG.supabase.roomName || "general";
+    const now = new Date().toISOString();
+    const { error } = await state.supabaseClient
+      .from("chat_settings")
+      .update({
+        session_active: false,
+        session_started_at: null,
+        session_id: "",
+        updated_at: now,
+      })
+      .eq("room", room);
+    if (error) throw error;
+    await broadcastChatEvent("session_updated", { active: false });
+    updateWorkshopStatusLabel(false, null);
+    showToast("Workshop beendet – Teilnehmer abgemeldet");
+  } catch (err) {
+    showToast(`Fehler: ${err.message}`);
+    el.endWorkshopBtn.disabled = false;
+  }
 }
 
 async function openDashboard() {
@@ -234,11 +279,12 @@ async function loadChatCode() {
   try {
     const { data, error } = await state.supabaseClient
       .from("chat_settings")
-      .select("workshop_code")
+      .select("workshop_code, session_active, session_started_at")
       .eq("room", CONFIG.supabase.roomName || "general")
       .maybeSingle();
     if (!error && data) {
       el.cfgChatCode.value = data.workshop_code || "";
+      updateWorkshopStatusLabel(data.session_active, data.session_started_at);
     }
   } catch {
     // ignore
@@ -368,6 +414,7 @@ async function saveSiteConfig(e) {
   try {
     const room = CONFIG.supabase.roomName || "general";
     const now = new Date().toISOString();
+    const newSessionId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
     const [siteRes, codeRes] = await Promise.all([
       state.supabaseClient.from("site_settings").upsert({
         id: "default",
@@ -379,17 +426,22 @@ async function saveSiteConfig(e) {
       state.supabaseClient.from("chat_settings").upsert({
         room,
         workshop_code: code,
+        session_active: true,
+        session_started_at: now,
+        session_id: newSessionId,
         updated_at: now,
       }),
     ]);
     if (siteRes.error) throw siteRes.error;
     if (codeRes.error) throw codeRes.error;
+    await broadcastChatEvent("session_updated", { active: true, session_id: newSessionId });
+    updateWorkshopStatusLabel(true, now);
     state.savedConfigSnapshot = currentConfigSnapshot();
-    showToast("Workshop-Infos & Code gespeichert");
+    showToast("Workshop gestartet (max. 24 Std.) – alte Sessions abgemeldet");
   } catch (err) {
     showToast(`Fehler: ${err.message}`);
   } finally {
-    el.saveConfigBtn.textContent = "Speichern";
+    el.saveConfigBtn.textContent = "Workshop starten / speichern";
     updateSaveConfigState();
   }
 }
@@ -398,7 +450,6 @@ async function initSupabaseAuth() {
   const sb = CONFIG.supabase;
   if (!sb?.url || !sb?.anonKey) return;
 
-  el.supabaseOauthBox.classList.remove("hidden");
   el.supabaseLoginForm.classList.remove("hidden");
 
   const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
@@ -431,26 +482,19 @@ function isSupabaseUserAllowed(user) {
   return emailMatch || ghMatch;
 }
 
-async function loginWithSupabaseGithub() {
-  clearLoginError();
-  if (!state.supabaseClient) return;
-  const { error } = await state.supabaseClient.auth.signInWithOAuth({
-    provider: "github",
-    options: {
-      redirectTo: `${window.location.origin}${window.location.pathname}`,
-    },
-  });
-  if (error) {
-    showLoginError(error.message);
-  }
-}
-
-async function loginWithSupabase(email, password) {
+async function loginWithSupabase(identifier, password) {
   clearLoginError();
   el.supabaseLoginSubmit.disabled = true;
   el.supabaseLoginSubmit.textContent = "Melde an...";
 
   try {
+    const raw = String(identifier || "").trim();
+    const email = raw.includes("@")
+      ? raw
+      : usernameMap?.[raw.toLowerCase()] || "";
+    if (!email) {
+      throw new Error("Unbekannter Benutzername.");
+    }
     const { data, error } = await state.supabaseClient.auth.signInWithPassword({ email, password });
     if (error) throw error;
     if (!isSupabaseUserAllowed(data.user)) {
@@ -781,8 +825,6 @@ function formatBytes(bytes) {
 }
 
 function bindEvents() {
-  el.supabaseGithubBtn.addEventListener("click", loginWithSupabaseGithub);
-
   el.supabaseLoginForm.addEventListener("submit", (e) => {
     e.preventDefault();
     loginWithSupabase(el.emailInput.value.trim(), el.passwordInput.value);
@@ -804,6 +846,7 @@ function bindEvents() {
 
   el.configForm.addEventListener("submit", saveSiteConfig);
   el.showQrBtn.addEventListener("click", openQrTab);
+  el.endWorkshopBtn?.addEventListener("click", endWorkshopSession);
   el.genCodeBtn?.addEventListener("click", () => {
     const bytes = new Uint8Array(4);
     crypto.getRandomValues(bytes);

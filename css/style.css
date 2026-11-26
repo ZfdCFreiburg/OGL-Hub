@@ -1747,6 +1747,69 @@ body.chat-standalone .chat-chevron {
   flex: 1;
 }
 
+.workshop-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.workshop-live-card {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border);
+  background: var(--surface-alt);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+
+.workshop-live-card:hover,
+.workshop-live-card.selected {
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.workshop-live-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.workshop-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #15803d;
+}
+
+.workshop-live-cta {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.workshop-live-title {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.workshop-live-meta,
+.workshop-live-desc {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
 /* Storage Bar */
 .storage-header {
   display: flex;

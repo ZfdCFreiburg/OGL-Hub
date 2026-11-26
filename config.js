@@ -40,7 +40,13 @@ export const CONFIG = {
     // Name der Supabase Edge Function (supabase/functions/github-admin/index.ts)
     supabaseFunctionName: "github-admin",
     // Optional: Nur diese E-Mail-Adressen dürfen sich per Supabase auf admin.html anmelden (leer = alle im Projekt angelegten User)
-    allowedEmails: ["zfdc@janboelmann.de"],
+    allowedEmails: ["zfdc@janboelmann.de", "admin@ogl-hub.local"],
+    // Benutzernamen-Zuordnung für den Login auf admin.html (ohne @-Adresse)
+    usernameMap: {
+      zfdc: "admin@ogl-hub.local",
+      zfdcfreiburg: "admin@ogl-hub.local",
+      admin: "admin@ogl-hub.local",
+    },
     // Fallback bei direkter Token-Anmeldung: Nur diese GitHub-Benutzernamen sind erlaubt
     allowedUsers: ["ZfdCFreiburg"],
   },

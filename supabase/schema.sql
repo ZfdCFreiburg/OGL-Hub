@@ -13,7 +13,7 @@ create policy "Admin darf in hub-files hochladen"
   with check (
     bucket_id = 'hub-files'
     and (
-      lower(auth.jwt() ->> 'email') = 'zfdc@janboelmann.de'
+      lower(auth.jwt() ->> 'email') in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
       or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
     )
   );
@@ -25,7 +25,7 @@ create policy "Admin darf in hub-files aktualisieren"
   using (
     bucket_id = 'hub-files'
     and (
-      lower(auth.jwt() ->> 'email') = 'zfdc@janboelmann.de'
+      lower(auth.jwt() ->> 'email') in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
       or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
     )
   );
@@ -37,7 +37,7 @@ create policy "Admin darf aus hub-files löschen"
   using (
     bucket_id = 'hub-files'
     and (
-      lower(auth.jwt() ->> 'email') = 'zfdc@janboelmann.de'
+      lower(auth.jwt() ->> 'email') in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
       or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
     )
   );
@@ -56,6 +56,11 @@ insert into public.chat_settings (room, workshop_code)
 values ('general', '')
 on conflict (room) do nothing;
 
+alter table public.chat_settings add column if not exists session_active boolean not null default false;
+alter table public.chat_settings add column if not exists admin_last_seen timestamptz default null;
+alter table public.chat_settings add column if not exists session_started_at timestamptz default null;
+alter table public.chat_settings add column if not exists session_id text not null default '';
+
 alter table public.chat_settings enable row level security;
 
 grant select, insert, update on public.chat_settings to authenticated;
@@ -66,11 +71,11 @@ create policy "Nur Admin darf chat_settings verwalten"
   for all
   to authenticated
   using (
-    lower(auth.jwt() ->> 'email') = 'zfdc@janboelmann.de'
+    lower(auth.jwt() ->> 'email') in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
     or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
   )
   with check (
-    lower(auth.jwt() ->> 'email') = 'zfdc@janboelmann.de'
+    lower(auth.jwt() ->> 'email') in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
     or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
   );
 
@@ -108,11 +113,29 @@ create policy "Admin darf chat_messages verwalten"
   for all
   to authenticated
   using (
-    lower(auth.jwt() ->> 'email') = 'zfdc@janboelmann.de'
+    lower(auth.jwt() ->> 'email') in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
     or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
   );
 
 -- 4. Serverseitige RPC-Funktionen für den Workshop-Code (Code ist immer Pflicht)
+create or replace function public.is_workshop_session_active(p_room text default 'general')
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.chat_settings
+    where room = p_room
+      and session_active = true
+      and session_started_at is not null
+      and session_started_at > now() - interval '24 hours'
+  );
+$$;
+
+grant execute on function public.is_workshop_session_active(text) to anon, authenticated;
+
 create or replace function public.chat_status(p_room text default 'general')
 returns jsonb
 language plpgsql
@@ -121,10 +144,16 @@ set search_path = public
 as $$
 declare
   v_pinned text;
+  v_session_id text;
 begin
-  select pinned_message into v_pinned from public.chat_settings where room = p_room;
+  select pinned_message, session_id
+    into v_pinned, v_session_id
+  from public.chat_settings
+  where room = p_room;
   return jsonb_build_object(
     'code_required', true,
+    'session_active', public.is_workshop_session_active(p_room),
+    'session_id', coalesce(v_session_id, ''),
     'pinned_message', coalesce(v_pinned, '')
   );
 end;
@@ -139,6 +168,10 @@ as $$
 declare
   v_code text;
 begin
+  if not public.is_workshop_session_active(p_room) then
+    raise exception 'Workshop-Session beendet';
+  end if;
+
   select workshop_code into v_code from public.chat_settings where room = p_room;
   if coalesce(v_code, '') = '' or coalesce(p_code, '') <> v_code then
     raise exception 'Falscher Workshop-Code';
@@ -183,13 +216,17 @@ declare
   v_is_admin boolean := false;
   v_row public.chat_messages;
 begin
+  if not public.is_workshop_session_active(p_room) then
+    raise exception 'Workshop-Session beendet';
+  end if;
+
   select workshop_code into v_code from public.chat_settings where room = p_room;
   if coalesce(v_code, '') = '' or coalesce(p_code, '') <> v_code then
     raise exception 'Falscher Workshop-Code';
   end if;
 
   v_is_admin := (
-    lower(coalesce(auth.jwt() ->> 'email', '')) = 'zfdc@janboelmann.de'
+    lower(coalesce(auth.jwt() ->> 'email', '')) in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
     or lower(coalesce(auth.jwt() -> 'user_metadata' ->> 'user_name', '')) = 'zfdcfreiburg'
   );
 
@@ -270,6 +307,10 @@ declare
   v_cur int;
   v_next int;
 begin
+  if not public.is_workshop_session_active(p_room) then
+    raise exception 'Workshop-Session beendet';
+  end if;
+
   select workshop_code into v_code from public.chat_settings where room = p_room;
   if coalesce(v_code, '') = '' or coalesce(p_code, '') <> v_code then
     raise exception 'Falscher Workshop-Code';
@@ -322,6 +363,10 @@ declare
   v_fails int;
   v_ok boolean;
 begin
+  if not public.is_workshop_session_active(p_room) then
+    raise exception 'Aktuell ist kein Workshop aktiv.';
+  end if;
+
   delete from public.portal_code_attempts
   where attempted_at < now() - interval '10 minutes';
 
@@ -381,11 +426,11 @@ create policy "Admin darf site_settings bearbeiten"
   on public.site_settings for all
   to authenticated
   using (
-    lower(auth.jwt() ->> 'email') = 'zfdc@janboelmann.de'
+    lower(auth.jwt() ->> 'email') in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
     or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
   )
   with check (
-    lower(auth.jwt() ->> 'email') = 'zfdc@janboelmann.de'
+    lower(auth.jwt() ->> 'email') in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
     or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
   );
 
@@ -409,11 +454,11 @@ create policy "Admin darf hub_links verwalten"
   on public.hub_links for all
   to authenticated
   using (
-    lower(auth.jwt() ->> 'email') = 'zfdc@janboelmann.de'
+    lower(auth.jwt() ->> 'email') in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
     or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
   )
   with check (
-    lower(auth.jwt() ->> 'email') = 'zfdc@janboelmann.de'
+    lower(auth.jwt() ->> 'email') in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
     or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
   );
 

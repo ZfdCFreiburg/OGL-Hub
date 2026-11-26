@@ -3,6 +3,7 @@ import { CONFIG } from "../config.js?v=14";
 const state = {
   files: [],
   generatedAt: null,
+  siteConfig: {},
   search: "",
   category: "all",
   type: "all",
@@ -33,6 +34,7 @@ const el = {
   linkPreviewOpen: document.getElementById("link-preview-open"),
   linkPreviewFrame: document.getElementById("link-preview-frame"),
   portalGate: document.getElementById("portal-gate"),
+  workshopPicker: document.getElementById("workshop-picker"),
   portalGateForm: document.getElementById("portal-gate-form"),
   portalCodeInput: document.getElementById("portal-code-input"),
   portalGateError: document.getElementById("portal-gate-error"),
@@ -46,6 +48,7 @@ const el = {
 
 function applyBranding(siteConfig = {}) {
   const { branding } = CONFIG;
+  state.siteConfig = siteConfig || {};
   const pageTitle = (siteConfig.pageTitle || "").trim();
   const workshopLeader = (siteConfig.workshopLeader || "").trim();
   const description = (siteConfig.description ?? branding.description ?? "").trim();
@@ -63,19 +66,9 @@ function applyBranding(siteConfig = {}) {
     el.brandTagline.classList.add("hidden");
   }
 
-  if (pageTitle) {
-    el.pageTitle.textContent = pageTitle;
-    el.pageTitle.classList.remove("hidden");
-  } else {
-    el.pageTitle.classList.add("hidden");
-  }
-
-  if (workshopLeader) {
-    el.workshopLeaderName.textContent = workshopLeader;
-    el.workshopLeader.classList.remove("hidden");
-  } else {
-    el.workshopLeader.classList.add("hidden");
-  }
+  el.pageTitle.textContent = pageTitle;
+  el.workshopLeaderName.textContent = workshopLeader;
+  setHeaderSessionVisible(false);
 
   if (description) {
     el.brandDescription.textContent = description;
@@ -479,12 +472,37 @@ function bindEvents() {
   });
 }
 
-async function initOptionalChat(portalCode = "") {
+async function initOptionalChat(portalCode = "", sbClient = null, room = "general") {
   if (!CONFIG.supabase?.enabled || !CONFIG.supabase?.url || !CONFIG.supabase?.anonKey) {
     return;
   }
-  const { initSupabaseChat } = await import("./supabase-chat.js?v=31");
-  initSupabaseChat(CONFIG.supabase, portalCode, () => loadManifest(portalCode));
+  const { initSupabaseChat } = await import("./supabase-chat.js?v=32");
+  initSupabaseChat(
+    CONFIG.supabase,
+    portalCode,
+    () => loadManifest(portalCode),
+    async (info) => {
+      if (info?.active === false) {
+        lockPortal("Aktuell ist kein Workshop aktiv.");
+        return;
+      }
+      const savedSession = localStorage.getItem(PORTAL_SESSION_KEY) || "";
+      if (info?.session_id && savedSession && info.session_id !== savedSession) {
+        lockPortal("Ein neuer Workshop wurde gestartet. Bitte neu anmelden.");
+        return;
+      }
+      if (sbClient) {
+        try {
+          const stillValid = await checkPortalCode(sbClient, room, portalCode);
+          if (!stillValid) {
+            lockPortal("Der Workshop-Code wurde geändert. Bitte neu anmelden.");
+          }
+        } catch (err) {
+          lockPortal(err?.message || "Workshop-Session beendet.");
+        }
+      }
+    }
+  );
 }
 
 async function loadSiteConfig() {
@@ -526,6 +544,13 @@ async function loadSiteConfig() {
 }
 
 const PORTAL_CODE_KEY = "ogl-portal-code";
+const PORTAL_SESSION_KEY = "ogl-portal-session";
+
+async function fetchWorkshopStatus(sbClient, room) {
+  const { data, error } = await sbClient.rpc("chat_status", { p_room: room });
+  if (error) throw error;
+  return data || {};
+}
 
 async function checkPortalCode(sbClient, room, code) {
   const { data, error } = await sbClient.rpc("verify_portal_code", {
@@ -536,11 +561,150 @@ async function checkPortalCode(sbClient, room, code) {
   return Boolean(data);
 }
 
-async function unlockPortal(code) {
+function setHeaderSessionVisible(visible) {
+  const pageTitle = (state.siteConfig?.pageTitle || "").trim();
+  const workshopLeader = (state.siteConfig?.workshopLeader || "").trim();
+  el.pageTitle.classList.toggle("hidden", !visible || !pageTitle);
+  el.workshopLeader.classList.toggle("hidden", !visible || !workshopLeader);
+}
+
+function renderWorkshopGate(isActive) {
+  if (!el.workshopPicker) return;
+  if (!isActive) {
+    el.workshopPicker.innerHTML = `<p class="muted-text" style="margin:0;">Aktuell läuft kein Workshop.</p>`;
+    el.portalGateForm.classList.add("hidden");
+    el.gateIndicator?.classList.add("hidden");
+    return;
+  }
+
+  const title = (state.siteConfig?.pageTitle || "").trim() || "Workshop";
+  const leader = (state.siteConfig?.workshopLeader || "").trim();
+  const desc = (state.siteConfig?.description || "").trim();
+
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = "workshop-live-card";
+
+  const top = document.createElement("div");
+  top.className = "workshop-live-top";
+  const badge = document.createElement("span");
+  badge.className = "workshop-live-badge";
+  badge.innerHTML = `<span class="chat-dot online"></span> Live`;
+  const cta = document.createElement("span");
+  cta.className = "workshop-live-cta";
+  cta.textContent = "Teilnehmen →";
+  top.append(badge, cta);
+
+  const heading = document.createElement("strong");
+  heading.className = "workshop-live-title";
+  heading.textContent = title;
+
+  card.append(top, heading);
+
+  if (leader) {
+    const meta = document.createElement("span");
+    meta.className = "workshop-live-meta";
+    meta.textContent = `Leitung: ${leader}`;
+    card.appendChild(meta);
+  }
+  if (desc) {
+    const sub = document.createElement("span");
+    sub.className = "workshop-live-desc";
+    sub.textContent = desc;
+    card.appendChild(sub);
+  }
+
+  card.addEventListener("click", () => {
+    card.classList.add("selected");
+    el.portalGateForm.classList.remove("hidden");
+    el.gateIndicator?.classList.remove("hidden");
+    el.portalCodeInput.focus();
+  });
+
+  el.workshopPicker.replaceChildren(card);
+}
+
+function lockPortal(reason = "") {
+  localStorage.removeItem(PORTAL_CODE_KEY);
+  localStorage.removeItem(PORTAL_SESSION_KEY);
+  [
+    "ogl-chat-code",
+    "ogl-chat-author",
+    "ogl-chat-author-at",
+    "ogl-chat-avatar",
+    "ogl-chat-color",
+    "ogl-chat-last-seen",
+    "ogl-chat-reacted",
+  ].forEach((k) => {
+    localStorage.removeItem(k);
+    sessionStorage.removeItem(k);
+  });
+  setHeaderSessionVisible(false);
+  el.portalContent.classList.add("hidden");
+  el.leaveRoomBtn?.classList.add("hidden");
+  document.getElementById("chat-widget")?.classList.add("hidden");
+  closeLinkPreview();
+  el.portalGate.classList.remove("hidden");
+  el.portalGateForm.classList.add("hidden");
+  el.portalGateBtn.disabled = false;
+  el.portalGateBtn.textContent = "Freischalten";
+  el.gateIndicator?.classList.add("hidden");
+  el.gateIndicator?.classList.remove("verifying", "success", "error");
+  el.gateCheck?.classList.add("hidden");
+  el.gateCross?.classList.add("hidden");
+  if (reason) {
+    el.portalGateError.textContent = reason;
+    el.portalGateError.classList.remove("hidden");
+  } else {
+    el.portalGateError.classList.add("hidden");
+  }
+  renderWorkshopGate(false);
+}
+
+async function unlockPortal(code, sbClient = null, room = "general") {
+  setHeaderSessionVisible(true);
   el.portalGate.classList.add("hidden");
   el.portalContent.classList.remove("hidden");
   el.leaveRoomBtn?.classList.remove("hidden");
-  await Promise.all([loadManifest(code), initOptionalChat(code)]);
+  if (sbClient) {
+    try {
+      const status = await fetchWorkshopStatus(sbClient, room);
+      if (status?.session_id) {
+        localStorage.setItem(PORTAL_SESSION_KEY, status.session_id);
+      }
+    } catch {
+      // ignore
+    }
+  }
+  await Promise.all([loadManifest(code), initOptionalChat(code, sbClient, room)]);
+
+  if (sbClient && !unlockPortal.watcherBound) {
+    unlockPortal.watcherBound = true;
+    const verifyActive = async () => {
+      const currentCode = (localStorage.getItem(PORTAL_CODE_KEY) || "").trim();
+      if (!currentCode) return;
+      try {
+        const status = await fetchWorkshopStatus(sbClient, room);
+        const savedSession = localStorage.getItem(PORTAL_SESSION_KEY) || "";
+        if (!status?.session_active) {
+          lockPortal("Aktuell ist kein Workshop aktiv.");
+          return;
+        }
+        if (savedSession && status.session_id && status.session_id !== savedSession) {
+          lockPortal("Ein neuer Workshop wurde gestartet. Bitte neu anmelden.");
+          return;
+        }
+        const ok = await checkPortalCode(sbClient, room, currentCode);
+        if (!ok) lockPortal("Der Workshop-Code wurde geändert. Bitte neu anmelden.");
+      } catch (err) {
+        lockPortal(err?.message || "Aktuell ist kein Workshop aktiv.");
+      }
+    };
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) verifyActive();
+    });
+    setInterval(verifyActive, 60000);
+  }
 }
 
 async function init() {
@@ -565,22 +729,38 @@ async function init() {
     const urlCode = (urlParams.get("code") || "").trim();
     if (urlCode) {
       window.history.replaceState({}, document.title, window.location.pathname);
-      if (await checkPortalCode(sbClient, room, urlCode)) {
-        localStorage.setItem(PORTAL_CODE_KEY, urlCode);
-        await unlockPortal(urlCode);
-        return;
+      try {
+        if (await checkPortalCode(sbClient, room, urlCode)) {
+          localStorage.setItem(PORTAL_CODE_KEY, urlCode);
+          await unlockPortal(urlCode, sbClient, room);
+          return;
+        }
+      } catch (err) {
+        el.portalGateError.textContent = err.message || "Aktuell ist kein Workshop aktiv.";
+        el.portalGateError.classList.remove("hidden");
       }
     }
 
     const savedCode = (localStorage.getItem(PORTAL_CODE_KEY) || "").trim();
-    if (savedCode && (await checkPortalCode(sbClient, room, savedCode))) {
-      await unlockPortal(savedCode);
-      return;
+    if (savedCode) {
+      try {
+        if (await checkPortalCode(sbClient, room, savedCode)) {
+          await unlockPortal(savedCode, sbClient, room);
+          return;
+        }
+      } catch {
+        // Session nicht aktiv -> Sperre anzeigen
+      }
     }
 
     localStorage.removeItem(PORTAL_CODE_KEY);
     el.portalGate.classList.remove("hidden");
-    el.portalCodeInput.focus();
+    try {
+      const status = await fetchWorkshopStatus(sbClient, room);
+      renderWorkshopGate(Boolean(status?.session_active));
+    } catch {
+      renderWorkshopGate(false);
+    }
 
     el.portalGateForm.addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -617,7 +797,7 @@ async function init() {
         el.portalGateBtn.textContent = "Freigeschaltet";
         localStorage.setItem(PORTAL_CODE_KEY, entered);
         await new Promise((r) => setTimeout(r, 720));
-        await unlockPortal(entered);
+        await unlockPortal(entered, sbClient, room);
       } catch (err) {
         el.gateIndicator.classList.remove("verifying");
         el.gateIndicator.classList.add("error");
