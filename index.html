@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>OGL Hub — Dateiaustausch</title>
   <link rel="icon" type="image/png" href="./assets/favicon.png" />
-  <link rel="stylesheet" href="./css/style.css?v=26" />
+  <link rel="stylesheet" href="./css/style.css?v=31" />
 </head>
 
 <body>
@@ -68,7 +68,6 @@
           </div>
           <div class="stats-bar">
             <span id="file-count" class="stat-pill">0 Dateien</span>
-            <span id="last-updated" class="stat-pill muted">Stand: —</span>
           </div>
         </section>
 
@@ -81,7 +80,8 @@
             <div id="category-pills" class="pill-group" role="tablist" aria-label="Ordner"></div>
             <div class="select-group">
               <select id="type-filter" class="select-input" aria-label="Nach Dateityp filtern">
-                <option value="all">Alle Dateitypen</option>
+                <option value="all">Alle Typen</option>
+                <option value="link">Links &amp; Ressourcen</option>
                 <option value="document">Dokumente &amp; PDF</option>
                 <option value="image">Bilder</option>
                 <option value="spreadsheet">Tabellen</option>
@@ -115,12 +115,33 @@
           </a>
           <nav id="footer-links" class="footer-links" aria-label="Rechtliches"></nav>
         </div>
-        <div id="footer-provider" class="footer-provider hidden">
+        <a id="footer-provider" class="footer-provider hidden" href="https://zfdc.ph-freiburg.de" target="_blank" rel="noopener noreferrer">
           <span id="footer-provider-label" class="footer-provider-label"></span>
           <img id="footer-provider-logo" class="footer-provider-logo" alt="" />
-        </div>
+        </a>
       </div>
     </footer>
+  </div>
+
+  <!-- HTML-Vorschau-Modal für Links -->
+  <div id="link-preview-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="link-preview-title">
+    <div class="modal-backdrop" data-close-link-modal></div>
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h2 id="link-preview-title" class="modal-title">Vorschau</h2>
+          <p id="link-preview-meta" class="modal-meta"></p>
+        </div>
+        <div class="modal-actions">
+          <a id="link-preview-open" class="btn btn-primary" target="_blank" rel="noopener noreferrer">In neuem Tab öffnen</a>
+          <button class="icon-btn" type="button" data-close-link-modal aria-label="Schließen">✕</button>
+        </div>
+      </div>
+      <div class="modal-body link-preview-body">
+        <iframe id="link-preview-frame" title="Link-Vorschau" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+        <p class="muted-text link-preview-hint">Hinweis: Manche Websites blockieren das Einbetten per Sicherheits-Header – nutze dann einfach „In neuem Tab öffnen“.</p>
+      </div>
+    </div>
   </div>
 
   <!-- Aufklappbares Chat-Widget unten rechts (Supabase Realtime) -->
@@ -141,6 +162,10 @@
         <p class="chat-join-text">Gib deinen Namen ein, um am Chat teilzunehmen:</p>
         <input id="chat-join-name" type="text" class="chat-author-input" placeholder="Dein Name" maxlength="40"
           required />
+        <div class="chat-avatar-section">
+          <span class="chat-avatar-label">Avatar (optional):</span>
+          <div id="chat-avatar-picker" class="chat-avatar-picker"></div>
+        </div>
         <div id="chat-join-error" class="alert-error hidden"></div>
         <button id="chat-join-btn" class="btn btn-primary" type="submit">Teilnehmen</button>
       </form>
@@ -170,7 +195,7 @@
 
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
-  <script type="module" src="./js/app.js?v=26"></script>
+  <script type="module" src="./js/app.js?v=31"></script>
 </body>
 
 </html>

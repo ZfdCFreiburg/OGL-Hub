@@ -17,10 +17,10 @@ export const CONFIG = {
       label: "Bereitgestellt durch\nZentrum für didaktische Computerspielforschung",
       logoUrl: "./assets/zfdc-logo.jpg",
       alt: "ZfdC – Zentrum für didaktische Computerspielforschung",
+      url: "https://zfdc.ph-freiburg.de",
     },
     footerLinks: [
-      // { label: "Impressum", url: "https://example.org/impressum" },
-      // { label: "Datenschutz", url: "https://example.org/datenschutz" },
+      { label: "Spieledatenbank", url: "https://zfdc.ph-freiburg.de/spieledatenbank/" },
     ],
   },
 

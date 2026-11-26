@@ -38,6 +38,8 @@ jobs:
           cp -r css js _site/
           if [ -d assets ]; then cp -r assets _site/; fi
           if [ -d files ]; then cp -r files _site/; fi
+          SHORT_SHA="${GITHUB_SHA::8}"
+          sed -i "s/?v=[0-9a-zA-Z_-]*/?v=${SHORT_SHA}/g" _site/*.html _site/js/*.js
           touch _site/.nojekyll
 
       - name: Setup Pages

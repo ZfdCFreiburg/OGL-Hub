@@ -49,6 +49,13 @@ const el = {
   uploadBtn: document.getElementById("upload-btn"),
   refreshFilesBtn: document.getElementById("refresh-files-btn"),
   adminFileList: document.getElementById("admin-file-list"),
+  linkForm: document.getElementById("link-form"),
+  linkTitle: document.getElementById("link-title"),
+  linkUrl: document.getElementById("link-url"),
+  linkFolder: document.getElementById("link-folder"),
+  addLinkBtn: document.getElementById("add-link-btn"),
+  refreshLinksBtn: document.getElementById("refresh-links-btn"),
+  adminLinkList: document.getElementById("admin-link-list"),
   refreshChatBtn: document.getElementById("refresh-chat-btn"),
   clearChatBtn: document.getElementById("clear-chat-btn"),
   adminChatList: document.getElementById("admin-chat-list"),
@@ -117,9 +124,102 @@ async function openDashboard() {
   el.loginSection.classList.add("hidden");
   el.dashboardSection.classList.remove("hidden");
   el.logoutBtn.classList.remove("hidden");
-  await Promise.all([loadSiteConfig(), loadRepoFiles(), loadChatCode(), loadAdminChatMessages()]);
+  await Promise.all([loadSiteConfig(), loadRepoFiles(), loadChatCode(), loadAdminLinks(), loadAdminChatMessages()]);
   state.savedConfigSnapshot = currentConfigSnapshot();
   updateSaveConfigState();
+}
+
+async function loadAdminLinks() {
+  if (state.mode !== "supabase" || !state.supabaseClient) return;
+  el.adminLinkList.textContent = "Lade Links...";
+  try {
+    const room = CONFIG.supabase.roomName || "general";
+    const { data, error } = await state.supabaseClient
+      .from("hub_links")
+      .select("*")
+      .eq("room", room)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+
+    if (!data?.length) {
+      el.adminLinkList.innerHTML = `<p class="muted-text">Noch keine Links freigegeben.</p>`;
+      return;
+    }
+
+    el.adminLinkList.replaceChildren(
+      ...data.map((item) => {
+        const row = document.createElement("div");
+        row.className = "admin-file-row";
+
+        const info = document.createElement("div");
+        info.className = "admin-file-info";
+        const title = document.createElement("strong");
+        title.textContent = item.title;
+        const folder = document.createElement("span");
+        folder.className = "file-folder";
+        folder.textContent = item.folder || "Links";
+        const urlSpan = document.createElement("span");
+        urlSpan.className = "muted-text";
+        urlSpan.textContent = item.url;
+        info.append(title, folder, urlSpan);
+
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "btn btn-danger";
+        delBtn.textContent = "Löschen";
+        delBtn.addEventListener("click", async () => {
+          delBtn.disabled = true;
+          const { error: delErr } = await state.supabaseClient
+            .from("hub_links")
+            .delete()
+            .eq("id", item.id);
+          if (delErr) {
+            showToast(`Fehler: ${delErr.message}`);
+            delBtn.disabled = false;
+            return;
+          }
+          await broadcastChatEvent("files_updated");
+          showToast("Link gelöscht");
+          await loadAdminLinks();
+        });
+
+        row.append(info, delBtn);
+        return row;
+      })
+    );
+  } catch (err) {
+    el.adminLinkList.textContent = `Fehler: ${err.message}`;
+  }
+}
+
+async function addAdminLink(e) {
+  e.preventDefault();
+  if (!state.supabaseClient) return;
+  const title = el.linkTitle.value.trim();
+  const url = el.linkUrl.value.trim();
+  const folder = el.linkFolder.value.trim() || "Links";
+  if (!title || !url) return;
+
+  el.addLinkBtn.disabled = true;
+  try {
+    const room = CONFIG.supabase.roomName || "general";
+    const { error } = await state.supabaseClient.from("hub_links").insert({
+      room,
+      title,
+      url,
+      folder,
+    });
+    if (error) throw error;
+    el.linkTitle.value = "";
+    el.linkUrl.value = "";
+    await broadcastChatEvent("files_updated");
+    showToast("Link hinzugefügt");
+    await loadAdminLinks();
+  } catch (err) {
+    showToast(`Fehler: ${err.message}`);
+  } finally {
+    el.addLinkBtn.disabled = false;
+  }
 }
 
 async function broadcastChatEvent(event, payload = {}) {
@@ -852,6 +952,8 @@ function bindEvents() {
   });
   el.uploadForm.addEventListener("submit", uploadFiles);
   el.refreshFilesBtn.addEventListener("click", loadRepoFiles);
+  el.linkForm.addEventListener("submit", addAdminLink);
+  el.refreshLinksBtn.addEventListener("click", loadAdminLinks);
   el.refreshChatBtn.addEventListener("click", loadAdminChatMessages);
   el.clearChatBtn.addEventListener("click", clearAllChatMessages);
 

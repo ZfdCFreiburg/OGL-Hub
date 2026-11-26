@@ -81,11 +81,15 @@ create table if not exists public.chat_messages (
   author text not null check (char_length(author) between 1 and 40),
   content text not null check (char_length(content) between 1 and 1000),
   color text not null default '',
+  avatar text not null default '',
+  reactions jsonb not null default '{}'::jsonb,
   is_admin boolean not null default false,
   created_at timestamptz not null default now()
 );
 
 alter table public.chat_messages add column if not exists color text not null default '';
+alter table public.chat_messages add column if not exists avatar text not null default '';
+alter table public.chat_messages add column if not exists reactions jsonb not null default '{}'::jsonb;
 alter table public.chat_messages add column if not exists is_admin boolean not null default false;
 
 create index if not exists idx_chat_messages_room_created
@@ -154,7 +158,8 @@ create or replace function public.chat_send_message(
   p_code text,
   p_author text,
   p_content text,
-  p_color text default ''
+  p_color text default '',
+  p_avatar text default ''
 )
 returns public.chat_messages
 language plpgsql
@@ -166,6 +171,7 @@ declare
   v_author text := trim(coalesce(p_author, ''));
   v_content text := regexp_replace(trim(coalesce(p_content, '')), '\s+', ' ', 'g');
   v_color text := case when coalesce(p_color, '') ~ '^#[0-9a-fA-F]{6}$' then lower(p_color) else '' end;
+  v_avatar text := case when coalesce(p_avatar, '') ~ '^[a-z0-9_-]{1,20}$' then lower(p_avatar) else '' end;
   v_last_author_at timestamptz;
   v_last_content text;
   v_recent_room_count int;
@@ -221,8 +227,8 @@ begin
     raise exception 'Zu viele Nachrichten im Chat – bitte kurz warten';
   end if;
 
-  insert into public.chat_messages (room, author, content, color, is_admin)
-  values (p_room, v_author, v_content, v_color, v_is_admin)
+  insert into public.chat_messages (room, author, content, color, avatar, is_admin)
+  values (p_room, v_author, v_content, v_color, v_avatar, v_is_admin)
   returning * into v_row;
 
   return v_row;
@@ -231,7 +237,58 @@ $$;
 
 grant execute on function public.chat_status(text) to anon, authenticated;
 grant execute on function public.chat_get_messages(text, text) to anon, authenticated;
-grant execute on function public.chat_send_message(text, text, text, text, text) to anon, authenticated;
+grant execute on function public.chat_send_message(text, text, text, text, text, text) to anon, authenticated;
+
+create or replace function public.chat_react_message(
+  p_room text,
+  p_code text,
+  p_message_id bigint,
+  p_emoji text,
+  p_delta int default 1
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_code text;
+  v_reactions jsonb;
+  v_cur int;
+  v_next int;
+begin
+  select workshop_code into v_code from public.chat_settings where room = p_room;
+  if coalesce(v_code, '') = '' or coalesce(p_code, '') <> v_code then
+    raise exception 'Falscher Workshop-Code';
+  end if;
+
+  if p_emoji not in ('👍', '✅', '❤️', '🎉', '❓') then
+    raise exception 'Ungültige Reaktion';
+  end if;
+
+  select reactions into v_reactions from public.chat_messages where id = p_message_id and room = p_room;
+  if v_reactions is null then
+    raise exception 'Nachricht nicht gefunden';
+  end if;
+
+  v_cur := coalesce((v_reactions ->> p_emoji)::int, 0);
+  v_next := greatest(0, v_cur + (case when p_delta >= 0 then 1 else -1 end));
+
+  if v_next = 0 then
+    v_reactions := v_reactions - p_emoji;
+  else
+    v_reactions := jsonb_set(v_reactions, array[p_emoji], to_jsonb(v_next), true);
+  end if;
+
+  update public.chat_messages
+  set reactions = v_reactions
+  where id = p_message_id and room = p_room;
+
+  return v_reactions;
+end;
+$$;
+
+grant execute on function public.chat_react_message(text, text, bigint, text, int) to anon, authenticated;
 
 create or replace function public.verify_portal_code(p_room text default 'general', p_code text default '')
 returns boolean
@@ -289,3 +346,56 @@ create policy "Admin darf site_settings bearbeiten"
     lower(auth.jwt() ->> 'email') = 'zfdc@janboelmann.de'
     or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
   );
+
+-- 6. Geteilte Links & Ressourcen (geschützt durch Workshop-Code)
+create table if not exists public.hub_links (
+  id bigint generated always as identity primary key,
+  room text not null default 'general',
+  title text not null check (char_length(trim(title)) between 1 and 120),
+  url text not null check (url ~ '^https?://'),
+  folder text not null default 'Links',
+  description text not null default '',
+  created_at timestamptz not null default now()
+);
+
+alter table public.hub_links enable row level security;
+
+grant select, insert, delete on public.hub_links to authenticated;
+
+drop policy if exists "Admin darf hub_links verwalten" on public.hub_links;
+create policy "Admin darf hub_links verwalten"
+  on public.hub_links for all
+  to authenticated
+  using (
+    lower(auth.jwt() ->> 'email') = 'zfdc@janboelmann.de'
+    or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
+  )
+  with check (
+    lower(auth.jwt() ->> 'email') = 'zfdc@janboelmann.de'
+    or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
+  );
+
+create or replace function public.get_portal_links(p_room text default 'general', p_code text default '')
+returns setof public.hub_links
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_code text;
+begin
+  select workshop_code into v_code from public.chat_settings where room = p_room;
+  if coalesce(v_code, '') = '' or coalesce(p_code, '') <> v_code then
+    raise exception 'Falscher Workshop-Code';
+  end if;
+
+  return query
+  select *
+  from public.hub_links
+  where room = p_room
+  order by created_at desc
+  limit 100;
+end;
+$$;
+
+grant execute on function public.get_portal_links(text, text) to anon, authenticated;

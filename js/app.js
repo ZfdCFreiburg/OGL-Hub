@@ -21,13 +21,17 @@ const el = {
   footerProviderLabel: document.getElementById("footer-provider-label"),
   footerProviderLogo: document.getElementById("footer-provider-logo"),
   fileCount: document.getElementById("file-count"),
-  lastUpdated: document.getElementById("last-updated"),
   searchInput: document.getElementById("search-input"),
   categoryPills: document.getElementById("category-pills"),
   typeFilter: document.getElementById("type-filter"),
   sortSelect: document.getElementById("sort-select"),
   fileList: document.getElementById("file-list"),
   toast: document.getElementById("toast"),
+  linkPreviewModal: document.getElementById("link-preview-modal"),
+  linkPreviewTitle: document.getElementById("link-preview-title"),
+  linkPreviewMeta: document.getElementById("link-preview-meta"),
+  linkPreviewOpen: document.getElementById("link-preview-open"),
+  linkPreviewFrame: document.getElementById("link-preview-frame"),
   portalGate: document.getElementById("portal-gate"),
   portalGateForm: document.getElementById("portal-gate-form"),
   portalCodeInput: document.getElementById("portal-code-input"),
@@ -106,6 +110,9 @@ function applyBranding(siteConfig = {}) {
     });
     el.footerProviderLogo.src = branding.footerProvider.logoUrl;
     el.footerProviderLogo.alt = branding.footerProvider.alt || "";
+    if (branding.footerProvider.url) {
+      el.footerProvider.href = branding.footerProvider.url;
+    }
     el.footerProvider.classList.remove("hidden");
   }
 
@@ -140,6 +147,7 @@ function formatDate(iso) {
 
 function getFileCategoryGroup(ext) {
   const e = (ext || "").toLowerCase();
+  if (e === "link") return "link";
   if (["pdf", "doc", "docx", "odt", "txt", "md", "rtf"].includes(e)) return "document";
   if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(e)) return "image";
   if (["xls", "xlsx", "ods", "csv"].includes(e)) return "spreadsheet";
@@ -194,21 +202,44 @@ function getFilteredFiles() {
     });
 }
 
+function getRemainingHoursLabel(iso) {
+  if (!iso) return "";
+  const expiresAt = new Date(iso).getTime() + 24 * 60 * 60 * 1000;
+  const diffMs = expiresAt - Date.now();
+  if (diffMs <= 0) return "Läuft bald ab";
+  const hours = Math.ceil(diffMs / (60 * 60 * 1000));
+  return hours <= 1 ? "Noch < 1 Std." : `Noch ${hours} Std.`;
+}
+
+function openLinkPreview(item) {
+  el.linkPreviewTitle.textContent = item.name;
+  el.linkPreviewMeta.textContent = item.url;
+  el.linkPreviewOpen.href = item.url;
+  el.linkPreviewFrame.src = item.url;
+  el.linkPreviewModal.classList.remove("hidden");
+}
+
+function closeLinkPreview() {
+  el.linkPreviewModal.classList.add("hidden");
+  el.linkPreviewFrame.src = "about:blank";
+}
+
 function renderFiles() {
   const items = getFilteredFiles();
-  el.fileCount.textContent = `${items.length} ${items.length === 1 ? "Datei" : "Dateien"}`;
+  el.fileCount.textContent = `${items.length} ${items.length === 1 ? "Eintrag" : "Einträge"}`;
 
   if (!items.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
     empty.innerHTML = state.files.length
-      ? "<p>Keine Dateien gefunden. Passe Suche oder Filter an.</p>"
-      : `<p>Noch keine Dateien vorhanden.</p><p>${CONFIG.files.emptyStateHint}</p>`;
+      ? "<p>Keine Einträge gefunden. Passe Suche oder Filter an.</p>"
+      : `<p>Noch keine Dateien oder Links vorhanden.</p><p>${CONFIG.files.emptyStateHint}</p>`;
     el.fileList.replaceChildren(empty);
     return;
   }
 
   const cards = items.map((file) => {
+    const isLink = file.isLink === true;
     const card = document.createElement("article");
     card.className = "file-card";
 
@@ -217,7 +248,7 @@ function renderFiles() {
 
     const badge = document.createElement("div");
     badge.className = "file-badge";
-    badge.textContent = (file.ext || "FILE").slice(0, 4);
+    badge.textContent = isLink ? "LINK" : (file.ext || "FILE").slice(0, 4);
 
     const info = document.createElement("div");
     info.className = "file-info";
@@ -228,7 +259,20 @@ function renderFiles() {
 
     const meta = document.createElement("div");
     meta.className = "file-meta";
-    meta.innerHTML = `<span class="file-folder">${escapeHtml(file.folder || "Allgemein")}</span><span>${formatBytes(file.size)}</span><span>${formatDate(file.modifiedAt)}</span>`;
+    if (isLink) {
+      let host = "";
+      try {
+        host = new URL(file.url).hostname.replace(/^www\./, "");
+      } catch {
+        host = "Link";
+      }
+      meta.innerHTML = `<span class="file-folder">${escapeHtml(file.folder || "Links")}</span><span>${escapeHtml(host)}</span>`;
+    } else {
+      const ttlBadge = file.expiresAfter24h
+        ? `<span class="file-ttl">${escapeHtml(getRemainingHoursLabel(file.modifiedAt))}</span>`
+        : "";
+      meta.innerHTML = `<span class="file-folder">${escapeHtml(file.folder || "Allgemein")}</span><span>${formatBytes(file.size)}</span><span>${formatDate(file.modifiedAt)}</span>${ttlBadge}`;
+    }
 
     info.append(name, meta);
     top.append(badge, info);
@@ -236,12 +280,28 @@ function renderFiles() {
     const actions = document.createElement("div");
     actions.className = "file-actions";
 
-    const dl = document.createElement("a");
-    dl.className = "btn btn-primary";
-    dl.href = encodeURI(file.url);
-    dl.download = file.name;
-    dl.textContent = "Download";
-    actions.appendChild(dl);
+    if (isLink) {
+      const prevBtn = document.createElement("button");
+      prevBtn.type = "button";
+      prevBtn.className = "btn btn-secondary";
+      prevBtn.textContent = "Vorschau";
+      prevBtn.addEventListener("click", () => openLinkPreview(file));
+
+      const openBtn = document.createElement("a");
+      openBtn.className = "btn btn-primary";
+      openBtn.href = file.url;
+      openBtn.target = "_blank";
+      openBtn.rel = "noopener noreferrer";
+      openBtn.textContent = "Öffnen";
+      actions.append(prevBtn, openBtn);
+    } else {
+      const dl = document.createElement("a");
+      dl.className = "btn btn-primary";
+      dl.href = encodeURI(file.url);
+      dl.download = file.name;
+      dl.textContent = "Download";
+      actions.appendChild(dl);
+    }
 
     card.append(top, actions);
     return card;
@@ -301,6 +361,7 @@ async function loadManifest(portalCode = "") {
             size: asset.size || 0,
             modifiedAt: asset.modifiedAt,
             url: asset.url,
+            expiresAfter24h: true,
           };
         });
       }
@@ -309,9 +370,40 @@ async function loadManifest(portalCode = "") {
     }
   }
 
-  state.files = [...releaseFiles, ...staticFiles];
-  state.generatedAt = releaseFiles[0]?.modifiedAt || generatedAt;
-  el.lastUpdated.textContent = `Stand: ${formatDate(state.generatedAt)}`;
+  let linkItems = [];
+  if (sb?.url && sb?.anonKey) {
+    try {
+      const linkRes = await fetch(`${sb.url}/rest/v1/rpc/get_portal_links`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: sb.anonKey,
+          Authorization: `Bearer ${sb.anonKey}`,
+        },
+        body: JSON.stringify({
+          p_room: sb.roomName || "general",
+          p_code: portalCode || "",
+        }),
+      });
+      if (linkRes.ok) {
+        const rows = await linkRes.json();
+        linkItems = (rows || []).map((row) => ({
+          name: row.title,
+          folder: row.folder || "Links",
+          ext: "link",
+          size: 0,
+          modifiedAt: row.created_at,
+          url: row.url,
+          isLink: true,
+        }));
+      }
+    } catch {
+      linkItems = [];
+    }
+  }
+
+  state.files = [...linkItems, ...releaseFiles, ...staticFiles];
+  state.generatedAt = releaseFiles[0]?.modifiedAt || linkItems[0]?.modifiedAt || generatedAt;
   renderCategories();
   renderFiles();
 }
@@ -334,15 +426,56 @@ function bindEvents() {
     renderFiles();
   });
 
+  document.querySelectorAll("[data-close-link-modal]").forEach((node) => {
+    node.addEventListener("click", closeLinkPreview);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !el.linkPreviewModal?.classList.contains("hidden")) {
+      closeLinkPreview();
+    }
+  });
+
   el.leaveRoomBtn?.addEventListener("click", () => {
+    localStorage.removeItem("ogl-portal-code");
     [
-      "ogl-portal-code",
       "ogl-chat-code",
       "ogl-chat-author",
       "ogl-chat-author-at",
+      "ogl-chat-avatar",
+      "ogl-chat-color",
       "ogl-chat-last-seen",
-    ].forEach((k) => localStorage.removeItem(k));
+      "ogl-chat-reacted",
+    ].forEach((k) => {
+      localStorage.removeItem(k);
+      sessionStorage.removeItem(k);
+    });
     window.location.reload();
+  });
+
+  // Subtiles Easter Egg: 5x Klick auf das OGL-Logo
+  let logoClicks = 0;
+  let resetTimer = null;
+  el.brandLogo?.addEventListener("click", () => {
+    logoClicks += 1;
+    clearTimeout(resetTimer);
+    resetTimer = setTimeout(() => {
+      logoClicks = 0;
+    }, 1400);
+    if (logoClicks >= 5) {
+      logoClicks = 0;
+      el.brandLogo.classList.remove("xp-pop");
+      void el.brandLogo.offsetWidth;
+      el.brandLogo.classList.add("xp-pop");
+      const rect = el.brandLogo.getBoundingClientRect();
+      const xp = document.createElement("span");
+      xp.className = "xp-float";
+      xp.textContent = "+100 XP";
+      xp.style.left = `${rect.left + rect.width / 2}px`;
+      xp.style.top = `${rect.bottom + 4}px`;
+      document.body.appendChild(xp);
+      setTimeout(() => xp.remove(), 1100);
+    }
   });
 }
 
@@ -350,7 +483,7 @@ async function initOptionalChat(portalCode = "") {
   if (!CONFIG.supabase?.enabled || !CONFIG.supabase?.url || !CONFIG.supabase?.anonKey) {
     return;
   }
-  const { initSupabaseChat } = await import("./supabase-chat.js?v=26");
+  const { initSupabaseChat } = await import("./supabase-chat.js?v=31");
   initSupabaseChat(CONFIG.supabase, portalCode, () => loadManifest(portalCode));
 }
 
