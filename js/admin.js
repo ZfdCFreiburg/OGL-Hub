@@ -32,9 +32,6 @@ const el = {
   saveConfigBtn: document.getElementById("save-config-btn"),
   showQrBtn: document.getElementById("show-qr-btn"),
   cfgChatCode: document.getElementById("cfg-chat-code"),
-  pinForm: document.getElementById("pin-form"),
-  cfgPinnedMsg: document.getElementById("cfg-pinned-msg"),
-  savePinBtn: document.getElementById("save-pin-btn"),
   uploadForm: document.getElementById("upload-form"),
   uploadFolder: document.getElementById("upload-folder"),
   folderSuggestions: document.getElementById("folder-suggestions"),
@@ -56,9 +53,6 @@ const el = {
   addLinkBtn: document.getElementById("add-link-btn"),
   refreshLinksBtn: document.getElementById("refresh-links-btn"),
   adminLinkList: document.getElementById("admin-link-list"),
-  refreshChatBtn: document.getElementById("refresh-chat-btn"),
-  clearChatBtn: document.getElementById("clear-chat-btn"),
-  adminChatList: document.getElementById("admin-chat-list"),
   toast: document.getElementById("toast"),
 };
 
@@ -124,7 +118,7 @@ async function openDashboard() {
   el.loginSection.classList.add("hidden");
   el.dashboardSection.classList.remove("hidden");
   el.logoutBtn.classList.remove("hidden");
-  await Promise.all([loadSiteConfig(), loadRepoFiles(), loadChatCode(), loadAdminLinks(), loadAdminChatMessages()]);
+  await Promise.all([loadSiteConfig(), loadRepoFiles(), loadChatCode(), loadAdminLinks()]);
   state.savedConfigSnapshot = currentConfigSnapshot();
   updateSaveConfigState();
 }
@@ -236,154 +230,19 @@ async function broadcastChatEvent(event, payload = {}) {
   state.supabaseClient.removeChannel(ch);
 }
 
-async function loadAdminChatMessages() {
-  if (state.mode !== "supabase" || !state.supabaseClient) return;
-  el.adminChatList.textContent = "Lade Nachrichten...";
-  try {
-    const room = CONFIG.supabase.roomName || "general";
-    const { data, error } = await state.supabaseClient
-      .from("chat_messages")
-      .select("*")
-      .eq("room", room)
-      .order("created_at", { ascending: false })
-      .limit(100);
-    if (error) throw error;
-
-    if (!data?.length) {
-      el.adminChatList.innerHTML = `<p class="muted-text">Keine Chat-Nachrichten vorhanden.</p>`;
-      return;
-    }
-
-    el.adminChatList.replaceChildren(
-      ...data.map((msg) => {
-        const row = document.createElement("div");
-        row.className = "admin-file-row";
-        if (msg.color) row.style.background = msg.color;
-
-        const info = document.createElement("div");
-        info.className = "admin-file-info";
-        const author = document.createElement("strong");
-        author.textContent = msg.author;
-        const text = document.createElement("span");
-        text.className = "admin-file-path";
-        text.textContent = msg.content;
-        const time = document.createElement("span");
-        time.className = "muted-text";
-        time.textContent = new Date(msg.created_at).toLocaleTimeString("de-DE", {
-          hour: "2-digit",
-          minute: "2-digit",
-        });
-        info.append(author, text, time);
-
-        const pinBtn = document.createElement("button");
-        pinBtn.type = "button";
-        pinBtn.className = "btn btn-secondary";
-        pinBtn.style.padding = "6px 10px";
-        pinBtn.style.fontSize = "0.82rem";
-        pinBtn.textContent = "Anpinnen";
-        pinBtn.addEventListener("click", async () => {
-          const pinnedText = `${msg.author}: ${msg.content}`.slice(0, 300);
-          el.cfgPinnedMsg.value = pinnedText;
-          const { error: pinErr } = await state.supabaseClient
-            .from("chat_settings")
-            .update({ pinned_message: pinnedText, updated_at: new Date().toISOString() })
-            .eq("room", room);
-          if (pinErr) {
-            showToast(`Fehler: ${pinErr.message}`);
-            return;
-          }
-          await broadcastChatEvent("pinned_updated", { text: pinnedText });
-          showToast("Nachricht angepinnt");
-        });
-
-        const delBtn = document.createElement("button");
-        delBtn.type = "button";
-        delBtn.className = "btn btn-danger";
-        delBtn.textContent = "Löschen";
-        delBtn.addEventListener("click", async () => {
-          delBtn.disabled = true;
-          const { error: delErr } = await state.supabaseClient
-            .from("chat_messages")
-            .delete()
-            .eq("id", msg.id);
-          if (delErr) {
-            showToast(`Fehler: ${delErr.message}`);
-            delBtn.disabled = false;
-            return;
-          }
-          await broadcastChatEvent("delete_message", { id: msg.id });
-          showToast("Nachricht gelöscht");
-          await loadAdminChatMessages();
-        });
-
-        const btnGroup = document.createElement("div");
-        btnGroup.className = "header-actions";
-        btnGroup.append(pinBtn, delBtn);
-
-        row.append(info, btnGroup);
-        return row;
-      })
-    );
-  } catch (err) {
-    el.adminChatList.textContent = `Fehler: ${err.message}`;
-  }
-}
-
-async function clearAllChatMessages() {
-  if (!confirm("Wirklich alle Chat-Nachrichten löschen?")) return;
-  el.clearChatBtn.disabled = true;
-  try {
-    const room = CONFIG.supabase.roomName || "general";
-    const { error } = await state.supabaseClient
-      .from("chat_messages")
-      .delete()
-      .eq("room", room);
-    if (error) throw error;
-    await broadcastChatEvent("clear_all");
-    showToast("Alle Nachrichten gelöscht");
-    await loadAdminChatMessages();
-  } catch (err) {
-    showToast(`Fehler: ${err.message}`);
-  } finally {
-    el.clearChatBtn.disabled = false;
-  }
-}
-
 async function loadChatCode() {
   if (state.mode !== "supabase" || !state.supabaseClient) return;
   try {
     const { data, error } = await state.supabaseClient
       .from("chat_settings")
-      .select("workshop_code, pinned_message")
+      .select("workshop_code")
       .eq("room", CONFIG.supabase.roomName || "general")
       .maybeSingle();
     if (!error && data) {
       el.cfgChatCode.value = data.workshop_code || "";
-      el.cfgPinnedMsg.value = data.pinned_message || "";
     }
   } catch {
     // ignore
-  }
-}
-
-async function savePinnedMessage(e) {
-  e.preventDefault();
-  if (!state.supabaseClient) return;
-  el.savePinBtn.disabled = true;
-  try {
-    const room = CONFIG.supabase.roomName || "general";
-    const text = el.cfgPinnedMsg.value.trim();
-    const { error } = await state.supabaseClient
-      .from("chat_settings")
-      .update({ pinned_message: text, updated_at: new Date().toISOString() })
-      .eq("room", room);
-    if (error) throw error;
-    await broadcastChatEvent("pinned_updated", { text });
-    showToast(text ? "Nachricht angepinnt" : "Pin entfernt");
-  } catch (err) {
-    showToast(`Fehler: ${err.message}`);
-  } finally {
-    el.savePinBtn.disabled = false;
   }
 }
 
@@ -945,7 +804,6 @@ function bindEvents() {
   });
 
   el.configForm.addEventListener("submit", saveSiteConfig);
-  el.pinForm.addEventListener("submit", savePinnedMessage);
   el.showQrBtn.addEventListener("click", openQrTab);
   [el.cfgPageTitle, el.cfgChatCode, el.cfgLeader, el.cfgDescription].forEach((input) => {
     input.addEventListener("input", updateSaveConfigState);
@@ -954,8 +812,6 @@ function bindEvents() {
   el.refreshFilesBtn.addEventListener("click", loadRepoFiles);
   el.linkForm.addEventListener("submit", addAdminLink);
   el.refreshLinksBtn.addEventListener("click", loadAdminLinks);
-  el.refreshChatBtn.addEventListener("click", loadAdminChatMessages);
-  el.clearChatBtn.addEventListener("click", clearAllChatMessages);
 
   el.dropzone.addEventListener("click", () => el.fileInput.click());
   el.dropzone.addEventListener("keydown", (e) => {

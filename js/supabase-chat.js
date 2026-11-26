@@ -10,7 +10,6 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
   const titleEl = document.getElementById("chat-title");
   const presenceEl = document.getElementById("chat-presence");
   const countEl = document.getElementById("chat-count");
-  const soundBtn = document.getElementById("chat-sound-btn");
   const popoutBtn = document.getElementById("chat-popout-btn");
   const chevron = document.getElementById("chat-chevron");
   const panel = document.getElementById("chat-panel");
@@ -102,18 +101,6 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
   let lastSeenAt = Number(sessionStorage.getItem(LAST_SEEN_KEY) || 0);
   let isAdminUser = false;
   let reactedMap = {};
-  textInput.addEventListener("input", () => {
-    if (!channel || !authorName || !textInput.value.trim()) return;
-    const now = Date.now();
-    if (now - lastTypingSent < TYPING_THROTTLE_MS) return;
-    lastTypingSent = now;
-    channel.send({
-      type: "broadcast",
-      event: "typing",
-      payload: { author: authorName },
-    });
-  });
-
   try {
     reactedMap = JSON.parse(sessionStorage.getItem(REACTED_KEY) || "{}") || {};
   } catch {
@@ -301,66 +288,12 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
     showNotice.timer = setTimeout(() => noticeEl.classList.add("hidden"), 3500);
   }
 
-  const SOUND_KEY = "ogl-chat-sound";
   const TYPING_THROTTLE_MS = 2000;
   const REPLY_SVG = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>`;
-  const BELL_ON_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>`;
-  const BELL_OFF_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
 
-  let soundEnabled = sessionStorage.getItem(SOUND_KEY) !== "0";
   let replyTarget = null;
   let lastTypingSent = 0;
   const typingUsers = new Map();
-
-  function updateSoundButton() {
-    if (!soundBtn) return;
-    soundBtn.innerHTML = soundEnabled ? BELL_ON_SVG : BELL_OFF_SVG;
-    soundBtn.classList.toggle("muted", !soundEnabled);
-    soundBtn.title = soundEnabled ? "Chat-Ton ausschalten" : "Chat-Ton einschalten";
-  }
-  updateSoundButton();
-
-  soundBtn?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    soundEnabled = !soundEnabled;
-    sessionStorage.setItem(SOUND_KEY, soundEnabled ? "1" : "0");
-    updateSoundButton();
-  });
-
-  function playPopSound() {
-    if (!soundEnabled) return;
-    textInput.addEventListener("input", () => {
-    if (!channel || !authorName || !textInput.value.trim()) return;
-    const now = Date.now();
-    if (now - lastTypingSent < TYPING_THROTTLE_MS) return;
-    lastTypingSent = now;
-    channel.send({
-      type: "broadcast",
-      event: "typing",
-      payload: { author: authorName },
-    });
-  });
-
-  try {
-      const Ctx = window.AudioContext || window.webkitAudioContext;
-      if (!Ctx) return;
-      const ctx = new Ctx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(660, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.06);
-      gain.gain.setValueAtTime(0.04, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.1);
-      osc.onended = () => ctx.close().catch(() => {});
-    } catch {
-      // AudioContext ohne vorherige Nutzerinteraktion ignorieren
-    }
-  }
 
   function clearReplyTarget() {
     replyTarget = null;
@@ -521,19 +454,7 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
     const already = Boolean(reactedMap[key]);
     const delta = already ? -1 : 1;
 
-    textInput.addEventListener("input", () => {
-    if (!channel || !authorName || !textInput.value.trim()) return;
-    const now = Date.now();
-    if (now - lastTypingSent < TYPING_THROTTLE_MS) return;
-    lastTypingSent = now;
-    channel.send({
-      type: "broadcast",
-      event: "typing",
-      payload: { author: authorName },
-    });
-  });
-
-  try {
+    try {
       const { data, error } = await client.rpc("chat_react_message", {
         p_room: room,
         p_code: workshopCode || "",
@@ -701,7 +622,6 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
     if (fromRemote && msg.author && msg.author !== authorName) {
       typingUsers.delete(msg.author);
       renderTypingIndicator();
-      if (!isOpen || document.hidden) playPopSound();
     }
     updateUnreadBadge();
   }
@@ -741,19 +661,7 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
   popoutBtn?.addEventListener("click", async (e) => {
     e.stopPropagation();
     if ("documentPictureInPicture" in window) {
-      textInput.addEventListener("input", () => {
-    if (!channel || !authorName || !textInput.value.trim()) return;
-    const now = Date.now();
-    if (now - lastTypingSent < TYPING_THROTTLE_MS) return;
-    lastTypingSent = now;
-    channel.send({
-      type: "broadcast",
-      event: "typing",
-      payload: { author: authorName },
-    });
-  });
-
-  try {
+      try {
         if (window.documentPictureInPicture.window) {
           window.documentPictureInPicture.window.focus();
           return;
@@ -832,19 +740,7 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
 
     sendBtn.disabled = true;
     textInput.value = "";
-    textInput.addEventListener("input", () => {
-    if (!channel || !authorName || !textInput.value.trim()) return;
-    const now = Date.now();
-    if (now - lastTypingSent < TYPING_THROTTLE_MS) return;
-    lastTypingSent = now;
-    channel.send({
-      type: "broadcast",
-      event: "typing",
-      payload: { author: authorName },
-    });
-  });
-
-  try {
+    try {
       const { data, error } = await client.rpc("chat_send_message", {
         p_room: room,
         p_code: workshopCode || "",
@@ -915,19 +811,7 @@ export async function initSupabaseChat(supabaseConfig, initialPortalCode = "", o
     setPinnedMessage(statusData?.pinned_message || "");
 
     if (!codeRequired || workshopCode) {
-      textInput.addEventListener("input", () => {
-    if (!channel || !authorName || !textInput.value.trim()) return;
-    const now = Date.now();
-    if (now - lastTypingSent < TYPING_THROTTLE_MS) return;
-    lastTypingSent = now;
-    channel.send({
-      type: "broadcast",
-      event: "typing",
-      payload: { author: authorName },
-    });
-  });
-
-  try {
+      try {
         await fetchMessages(workshopCode);
       } catch {
         isAuthorized = false;

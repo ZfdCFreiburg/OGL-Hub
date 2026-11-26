@@ -139,17 +139,6 @@
           </div>
         </div>
 
-        <!-- Vorhandene Dateien verwalten -->
-        <div class="admin-card">
-          <div class="card-header-row">
-            <div>
-              <h3>Dateien verwalten</h3>
-              <p class="muted-text">Vorhandene Dateien in GitHub Releases direkt löschen.</p>
-            </div>
-            <button id="refresh-files-btn" class="btn btn-secondary" type="button">Aktualisieren</button>
-          </div>
-          <div id="admin-file-list" class="admin-file-list"></div>
-        </div>
         <!-- Links & Ressourcen verwalten -->
         <div class="admin-card">
           <div class="card-header-row">
@@ -168,23 +157,16 @@
           <div id="admin-link-list" class="admin-file-list"></div>
         </div>
 
-        <!-- Chat-Nachrichten verwalten -->
+        <!-- Vorhandene Dateien verwalten -->
         <div class="admin-card">
           <div class="card-header-row">
             <div>
-              <h3>OGL Chat — Nachrichten</h3>
-              <p class="muted-text">Nachrichten einzeln oder komplett entfernen.</p>
+              <h3>Dateien verwalten</h3>
+              <p class="muted-text">Vorhandene Dateien in GitHub Releases direkt löschen.</p>
             </div>
-            <div class="header-actions">
-              <button id="refresh-chat-btn" class="btn btn-secondary" type="button">Aktualisieren</button>
-              <button id="clear-chat-btn" class="btn btn-danger" type="button">Alle löschen</button>
-            </div>
+            <button id="refresh-files-btn" class="btn btn-secondary" type="button">Aktualisieren</button>
           </div>
-          <form id="pin-form" class="pin-form">
-            <input id="cfg-pinned-msg" type="text" class="search-input" placeholder="Angepinnte Nachricht im Chat (optional, z. B. WLAN / Link)" maxlength="300" />
-            <button id="save-pin-btn" class="btn btn-secondary" type="submit">Anpinnen</button>
-          </form>
-          <div id="admin-chat-list" class="admin-file-list"></div>
+          <div id="admin-file-list" class="admin-file-list"></div>
         </div>
       </section>
     </main>

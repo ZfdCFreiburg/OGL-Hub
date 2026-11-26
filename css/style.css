@@ -823,10 +823,6 @@ body {
   color: var(--accent);
 }
 
-.chat-popout-btn.muted {
-  opacity: 0.5;
-}
-
 .chat-mention {
   font-weight: 600;
   color: var(--accent);
