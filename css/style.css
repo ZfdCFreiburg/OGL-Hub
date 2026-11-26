@@ -84,14 +84,17 @@ body {
 .header-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 14px;
-  justify-self: end;
+  width: 100%;
+  justify-self: stretch;
 }
 
 .leader-badge {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  margin: 0 auto;
   padding: 5px 12px;
   border-radius: 999px;
   background: var(--surface-alt);
@@ -588,7 +591,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  gap: 28px;
 }
 
 .footer-provider {
