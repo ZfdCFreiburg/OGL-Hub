@@ -14,7 +14,7 @@
   <link rel="icon" type="image/png" href="./assets/favicon.png" />
   <link rel="manifest" href="./manifest.json" />
   <meta name="theme-color" content="#ffffff" />
-  <link rel="stylesheet" href="./css/style.css?v=41" />
+  <link rel="stylesheet" href="./css/style.css?v=42" />
 </head>
 
 <body>
@@ -135,31 +135,6 @@
         </a>
       </div>
     </footer>
-  </div>
-
-  <!-- HTML-Vorschau-Modal für Links -->
-  <div id="link-preview-modal" class="modal hidden" role="dialog" aria-modal="true"
-    aria-labelledby="link-preview-title">
-    <div class="modal-backdrop" data-close-link-modal></div>
-    <div class="modal-card">
-      <div class="modal-header">
-        <div>
-          <h2 id="link-preview-title" class="modal-title">Vorschau</h2>
-          <p id="link-preview-meta" class="modal-meta"></p>
-        </div>
-        <div class="modal-actions">
-          <a id="link-preview-open" class="btn btn-primary" target="_blank" rel="noopener noreferrer">In neuem Tab
-            öffnen</a>
-          <button class="icon-btn" type="button" data-close-link-modal aria-label="Schließen">✕</button>
-        </div>
-      </div>
-      <div class="modal-body link-preview-body">
-        <iframe id="link-preview-frame" title="Link-Vorschau"
-          sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
-        <p class="muted-text link-preview-hint">Hinweis: Manche Websites blockieren das Einbetten per Sicherheits-Header
-          – nutze dann einfach „In neuem Tab öffnen“.</p>
-      </div>
-    </div>
   </div>
 
   <!-- Aufklappbares Chat-Widget unten rechts (Supabase Realtime) -->

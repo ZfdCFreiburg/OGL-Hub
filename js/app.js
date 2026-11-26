@@ -29,11 +29,6 @@ const el = {
   sortSelect: document.getElementById("sort-select"),
   fileList: document.getElementById("file-list"),
   toast: document.getElementById("toast"),
-  linkPreviewModal: document.getElementById("link-preview-modal"),
-  linkPreviewTitle: document.getElementById("link-preview-title"),
-  linkPreviewMeta: document.getElementById("link-preview-meta"),
-  linkPreviewOpen: document.getElementById("link-preview-open"),
-  linkPreviewFrame: document.getElementById("link-preview-frame"),
   portalGate: document.getElementById("portal-gate"),
   workshopPicker: document.getElementById("workshop-picker"),
   portalGateForm: document.getElementById("portal-gate-form"),
@@ -205,17 +200,70 @@ function getRemainingHoursLabel(iso) {
   return hours <= 1 ? "Noch < 1 Std." : `Noch ${hours} Std.`;
 }
 
-function openLinkPreview(item) {
-  el.linkPreviewTitle.textContent = item.name;
-  el.linkPreviewMeta.textContent = item.url;
-  el.linkPreviewOpen.href = item.url;
-  el.linkPreviewFrame.src = item.url;
-  el.linkPreviewModal.classList.remove("hidden");
+async function fetchLinkMeta(url) {
+  const cacheKey = `ogl-link-meta:${url}`;
+  try {
+    const cached = sessionStorage.getItem(cacheKey);
+    if (cached) return JSON.parse(cached);
+  } catch {
+    // ignore
+  }
+  try {
+    const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}`);
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json?.status !== "success" || !json.data) return null;
+    const meta = {
+      title: json.data.title || "",
+      description: json.data.description || "",
+      image: json.data.image?.url || json.data.logo?.url || "",
+    };
+    try {
+      sessionStorage.setItem(cacheKey, JSON.stringify(meta));
+    } catch {
+      // ignore
+    }
+    return meta;
+  } catch {
+    return null;
+  }
 }
 
-function closeLinkPreview() {
-  el.linkPreviewModal.classList.add("hidden");
-  el.linkPreviewFrame.src = "about:blank";
+function renderLinkMetaPreview(container, file, meta) {
+  if (!container || !meta) return;
+  const desc = (meta.description || "").trim();
+  const ogTitle = (meta.title || "").trim();
+  if (!desc && !meta.image && (!ogTitle || ogTitle === file.name)) return;
+
+  container.replaceChildren();
+  if (meta.image) {
+    const img = document.createElement("img");
+    img.src = meta.image;
+    img.alt = "";
+    img.className = "link-meta-thumb";
+    img.loading = "lazy";
+    img.addEventListener("error", () => img.remove());
+    container.appendChild(img);
+  }
+
+  const textWrap = document.createElement("div");
+  textWrap.className = "link-meta-text";
+  if (ogTitle && ogTitle !== file.name) {
+    const t = document.createElement("div");
+    t.className = "link-meta-title";
+    t.textContent = ogTitle;
+    textWrap.appendChild(t);
+  }
+  if (desc) {
+    const d = document.createElement("div");
+    d.className = "link-meta-desc";
+    d.textContent = desc;
+    textWrap.appendChild(d);
+  }
+  if (textWrap.childNodes.length) {
+    container.appendChild(textWrap);
+    container.classList.remove("hidden");
+  }
 }
 
 function renderFiles() {
@@ -275,19 +323,13 @@ function renderFiles() {
     actions.className = "file-actions";
 
     if (isLink) {
-      const prevBtn = document.createElement("button");
-      prevBtn.type = "button";
-      prevBtn.className = "btn btn-secondary";
-      prevBtn.textContent = "Vorschau";
-      prevBtn.addEventListener("click", () => openLinkPreview(file));
-
       const openBtn = document.createElement("a");
       openBtn.className = "btn btn-primary";
       openBtn.href = file.url;
       openBtn.target = "_blank";
       openBtn.rel = "noopener noreferrer";
       openBtn.textContent = "Öffnen";
-      actions.append(prevBtn, openBtn);
+      actions.appendChild(openBtn);
     } else {
       const dl = document.createElement("a");
       dl.className = "btn btn-primary";
@@ -298,6 +340,13 @@ function renderFiles() {
     }
 
     card.append(top, actions);
+
+    if (isLink) {
+      const metaBox = document.createElement("div");
+      metaBox.className = "link-meta-preview hidden";
+      card.insertBefore(metaBox, actions);
+      fetchLinkMeta(file.url).then((m) => renderLinkMetaPreview(metaBox, file, m));
+    }
     return card;
   });
 
@@ -418,16 +467,6 @@ function bindEvents() {
   el.sortSelect.addEventListener("change", (e) => {
     state.sort = e.target.value;
     renderFiles();
-  });
-
-  document.querySelectorAll("[data-close-link-modal]").forEach((node) => {
-    node.addEventListener("click", closeLinkPreview);
-  });
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !el.linkPreviewModal?.classList.contains("hidden")) {
-      closeLinkPreview();
-    }
   });
 
   el.leaveRoomBtn?.addEventListener("click", () => {
@@ -651,7 +690,6 @@ function lockPortal(reason = "") {
   el.portalContent.classList.add("hidden");
   el.leaveRoomBtn?.classList.add("hidden");
   document.getElementById("chat-widget")?.classList.add("hidden");
-  closeLinkPreview();
   el.portalGate.classList.remove("hidden");
   el.portalGateForm.classList.add("hidden");
   el.portalGateBtn.disabled = false;
