@@ -10,6 +10,7 @@ export async function initSupabaseChat(
   onSessionInvalidated = null,
   defaultLeaderName = ""
 ) {
+  window.__oglChatCleanup?.();
   const widget = document.getElementById("chat-widget");
   const bar = document.getElementById("chat-bar");
   const dot = document.getElementById("chat-online-dot");
@@ -910,6 +911,14 @@ export async function initSupabaseChat(
           await channel.track({ joined_at: Date.now() });
         }
       });
+
+    window.__oglChatCleanup = () => {
+      if (channel && client) {
+        client.removeChannel(channel);
+        channel = null;
+      }
+      setOnline(false);
+    };
   } catch (err) {
     console.error("Supabase Chat Fehler:", err);
     setOnline(false);

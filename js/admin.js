@@ -197,6 +197,8 @@ async function endWorkshopSession() {
     if (error) throw error;
     await broadcastChatEvent("session_updated", { active: false });
     updateWorkshopStatusLabel(false, null);
+    window.__oglChatCleanup?.();
+    state.chatInitialized = false;
     document.getElementById("chat-widget")?.classList.add("hidden");
     showToast("Workshop beendet – Teilnehmer abgemeldet");
   } catch (err) {
@@ -485,6 +487,7 @@ async function saveSiteConfig(e) {
     await broadcastChatEvent("clear_all");
     await broadcastChatEvent("session_updated", { active: true, session_id: newSessionId });
     updateWorkshopStatusLabel(true, now);
+    state.chatInitialized = false;
     document.getElementById("chat-widget")?.classList.remove("hidden");
     await initAdminChat();
     state.savedConfigSnapshot = currentConfigSnapshot();
@@ -869,6 +872,8 @@ function bindEvents() {
     el.passwordInput.value = "";
     el.dashboardSection.classList.add("hidden");
     el.logoutBtn.classList.add("hidden");
+    window.__oglChatCleanup?.();
+    state.chatInitialized = false;
     document.getElementById("chat-widget")?.classList.add("hidden");
     el.loginSection.classList.remove("hidden");
   });

@@ -1,5 +1,17 @@
 -- Schema, Storage-Policies & abgesicherter Workshop-Chat für OGL Hub
 
+create or replace function public.is_admin_jwt()
+returns boolean
+language sql
+stable
+set search_path = public
+as $$
+  select (
+    lower(coalesce(auth.jwt() ->> 'email', '')) in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
+    or lower(coalesce(auth.jwt() -> 'user_metadata' ->> 'user_name', '')) = 'zfdcfreiburg'
+  );
+$$;
+
 -- 1. Storage-Policies für den Bucket "hub-files"
 drop policy if exists "Öffentlicher Lesezugriff auf hub-files" on storage.objects;
 create policy "Öffentlicher Lesezugriff auf hub-files"
@@ -71,12 +83,10 @@ create policy "Nur Admin darf chat_settings verwalten"
   for all
   to authenticated
   using (
-    lower(auth.jwt() ->> 'email') in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
-    or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
+public.is_admin_jwt()
   )
   with check (
-    lower(auth.jwt() ->> 'email') in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
-    or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
+public.is_admin_jwt()
   );
 
 -- 3. Chat-Nachrichten (direkter Zugriff gesperrt; Zugriff läuft über RPC mit Code-Prüfung)
@@ -113,8 +123,7 @@ create policy "Admin darf chat_messages verwalten"
   for all
   to authenticated
   using (
-    lower(auth.jwt() ->> 'email') in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
-    or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
+public.is_admin_jwt()
   );
 
 -- 4. Serverseitige RPC-Funktionen für den Workshop-Code (Code ist immer Pflicht)
@@ -225,10 +234,7 @@ begin
     raise exception 'Falscher Workshop-Code';
   end if;
 
-  v_is_admin := (
-    lower(coalesce(auth.jwt() ->> 'email', '')) in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
-    or lower(coalesce(auth.jwt() -> 'user_metadata' ->> 'user_name', '')) = 'zfdcfreiburg'
-  );
+  v_is_admin := public.is_admin_jwt();
 
   if char_length(v_author) < 1 or char_length(v_author) > 40 then
     raise exception 'Ungültiger Name';
@@ -426,12 +432,10 @@ create policy "Admin darf site_settings bearbeiten"
   on public.site_settings for all
   to authenticated
   using (
-    lower(auth.jwt() ->> 'email') in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
-    or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
+public.is_admin_jwt()
   )
   with check (
-    lower(auth.jwt() ->> 'email') in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
-    or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
+public.is_admin_jwt()
   );
 
 -- 6. Geteilte Links & Ressourcen (geschützt durch Workshop-Code)
@@ -454,12 +458,10 @@ create policy "Admin darf hub_links verwalten"
   on public.hub_links for all
   to authenticated
   using (
-    lower(auth.jwt() ->> 'email') in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
-    or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
+public.is_admin_jwt()
   )
   with check (
-    lower(auth.jwt() ->> 'email') in ('zfdc@janboelmann.de', 'admin@ogl-hub.local')
-    or lower(auth.jwt() -> 'user_metadata' ->> 'user_name') = 'zfdcfreiburg'
+public.is_admin_jwt()
   );
 
 create or replace function public.get_portal_links(p_room text default 'general', p_code text default '')
@@ -471,6 +473,10 @@ as $$
 declare
   v_code text;
 begin
+  if not public.is_workshop_session_active(p_room) then
+    raise exception 'Workshop-Session beendet';
+  end if;
+
   select workshop_code into v_code from public.chat_settings where room = p_room;
   if coalesce(v_code, '') = '' or coalesce(p_code, '') <> v_code then
     raise exception 'Falscher Workshop-Code';

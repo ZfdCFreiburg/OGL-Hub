@@ -664,6 +664,7 @@ function lockPortal(reason = "") {
     sessionStorage.removeItem(k);
   });
   setHeaderSessionVisible(false);
+  window.__oglChatCleanup?.();
   el.portalContent.classList.add("hidden");
   el.leaveRoomBtn?.classList.add("hidden");
   document.getElementById("chat-widget")?.classList.add("hidden");
