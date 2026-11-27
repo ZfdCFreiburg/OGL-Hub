@@ -6,7 +6,7 @@
   <meta name="robots" content="noindex, nofollow" />
   <title>OGL Hub Admin</title>
   <link rel="icon" type="image/png" href="./assets/favicon.png" />
-  <link rel="stylesheet" href="./css/style.css?v=41" />
+  <link rel="stylesheet" href="./css/style.css?v=43" />
 </head>
 <body>
   <div class="app-shell">
@@ -99,18 +99,6 @@
             <h3>Dateien hochladen</h3>
             <p class="muted-text">Max. <strong>50 MB</strong> pro Datei · automatische Löschung nach 24 Std.</p>
             <form id="upload-form" class="stack-form">
-              <label class="field-label">
-                Ordner (optional)
-                <input
-                  id="upload-folder"
-                  type="text"
-                  class="search-input"
-                  list="folder-suggestions"
-                  placeholder="z. B. Vorlagen oder leer lassen"
-                />
-                <datalist id="folder-suggestions"></datalist>
-              </label>
-
               <div id="dropzone" class="dropzone" tabindex="0">
                 <p>Dateien hierher ziehen oder klicken zum Auswählen</p>
                 <input id="file-input" type="file" multiple class="hidden" />
@@ -145,7 +133,6 @@
           <form id="link-form" class="link-admin-form">
             <input id="link-title" type="text" class="search-input" placeholder="Titel (z. B. Etherpad)" maxlength="120" required />
             <input id="link-url" type="url" class="search-input" placeholder="https://..." required />
-            <input id="link-folder" type="text" class="search-input" list="folder-suggestions" placeholder="Ordner (Standard: Links)" maxlength="60" />
             <button id="add-link-btn" class="btn btn-primary" type="submit">Hinzufügen</button>
           </form>
           <div id="admin-link-list" class="admin-file-list"></div>

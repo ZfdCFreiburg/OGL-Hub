@@ -36,8 +36,6 @@ const el = {
   cfgChatCode: document.getElementById("cfg-chat-code"),
   genCodeBtn: document.getElementById("gen-code-btn"),
   uploadForm: document.getElementById("upload-form"),
-  uploadFolder: document.getElementById("upload-folder"),
-  folderSuggestions: document.getElementById("folder-suggestions"),
   dropzone: document.getElementById("dropzone"),
   fileInput: document.getElementById("file-input"),
   selectedFilesList: document.getElementById("selected-files"),
@@ -51,7 +49,6 @@ const el = {
   linkForm: document.getElementById("link-form"),
   linkTitle: document.getElementById("link-title"),
   linkUrl: document.getElementById("link-url"),
-  linkFolder: document.getElementById("link-folder"),
   addLinkBtn: document.getElementById("add-link-btn"),
   adminLinkList: document.getElementById("admin-link-list"),
   toast: document.getElementById("toast"),
@@ -244,13 +241,10 @@ async function loadAdminLinks() {
         info.className = "admin-file-info";
         const title = document.createElement("strong");
         title.textContent = item.title;
-        const folder = document.createElement("span");
-        folder.className = "file-folder";
-        folder.textContent = item.folder || "Links";
         const urlSpan = document.createElement("span");
         urlSpan.className = "muted-text";
         urlSpan.textContent = item.url;
-        info.append(title, folder, urlSpan);
+        info.append(title, urlSpan);
 
         const delBtn = document.createElement("button");
         delBtn.type = "button";
@@ -286,7 +280,7 @@ async function addAdminLink(e) {
   if (!state.supabaseClient) return;
   const title = el.linkTitle.value.trim();
   const url = el.linkUrl.value.trim();
-  const folder = el.linkFolder.value.trim() || "Links";
+  const folder = "Links";
   if (!title || !url) return;
 
   el.addLinkBtn.disabled = true;
@@ -615,22 +609,6 @@ async function loadRepoFiles() {
     const data = await invokeSupabaseAdmin({ action: "listReleases" });
     const files = data.files || [];
 
-    const folders = Array.from(
-      new Set(
-        files
-          .map((f) => (f.folder && f.folder !== "Allgemein" ? f.folder : ""))
-          .filter(Boolean)
-      )
-    ).sort();
-
-    el.folderSuggestions.replaceChildren(
-      ...folders.map((folder) => {
-        const opt = document.createElement("option");
-        opt.value = folder;
-        return opt;
-      })
-    );
-
     if (!files.length) {
       el.adminFileList.innerHTML = `<p class="muted-text">Noch keine Dateien vorhanden.</p>`;
       return;
@@ -645,7 +623,7 @@ async function loadRepoFiles() {
         info.className = "admin-file-info";
         const name = document.createElement("span");
         name.className = "admin-file-path";
-        name.textContent = item.path;
+        name.textContent = item.name || String(item.path || "").replace(/^Allgemein\//, "");
         const size = document.createElement("span");
         size.className = "muted-text";
         size.textContent = formatBytes(item.size || 0);
@@ -805,11 +783,6 @@ async function uploadFiles(e) {
   e.preventDefault();
   if (!state.selectedFiles.length) return;
 
-  const cleanFolder = el.uploadFolder.value
-    .trim()
-    .replace(/^\/+|\/+$/g, "")
-    .replace(/\.\./g, "");
-
   el.uploadBtn.disabled = true;
   el.uploadBtn.textContent = "Lade hoch...";
   el.uploadProgressBox.classList.remove("hidden");
@@ -826,7 +799,7 @@ async function uploadFiles(e) {
       const file = state.selectedFiles[idx];
       const form = new FormData();
       form.append("file", file);
-      form.append("folder", cleanFolder || "Allgemein");
+      form.append("folder", "Allgemein");
 
       await uploadWithProgress(
         `${CONFIG.supabase.url}/functions/v1/${fnName}`,

@@ -24,7 +24,6 @@ const el = {
   footerProviderLogo: document.getElementById("footer-provider-logo"),
   fileCount: document.getElementById("file-count"),
   searchInput: document.getElementById("search-input"),
-  categoryPills: document.getElementById("category-pills"),
   typeFilter: document.getElementById("type-filter"),
   sortSelect: document.getElementById("sort-select"),
   fileList: document.getElementById("file-list"),
@@ -144,34 +143,13 @@ function getFileCategoryGroup(ext) {
   return "other";
 }
 
-function renderCategories() {
-  const folders = Array.from(new Set(state.files.map((f) => f.folder || "Allgemein"))).sort();
-  const options = ["all", ...folders];
-
-  el.categoryPills.replaceChildren(
-    ...options.map((cat) => {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = `pill ${state.category === cat ? "active" : ""}`;
-      btn.textContent = cat === "all" ? "Alle Ordner" : cat;
-      btn.addEventListener("click", () => {
-        state.category = cat;
-        renderCategories();
-        renderFiles();
-      });
-      return btn;
-    })
-  );
-}
-
 function getFilteredFiles() {
   const q = state.search.trim().toLowerCase();
   return state.files
     .filter((f) => {
-      if (state.category !== "all" && (f.folder || "Allgemein") !== state.category) return false;
       if (state.type !== "all" && getFileCategoryGroup(f.ext) !== state.type) return false;
       if (q) {
-        const hay = `${f.name} ${f.folder || ""} ${f.ext || ""}`.toLowerCase();
+        const hay = `${f.name} ${f.ext || ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
@@ -308,12 +286,12 @@ function renderFiles() {
       } catch {
         host = "Link";
       }
-      meta.innerHTML = `<span class="file-folder">${escapeHtml(file.folder || "Links")}</span><span>${escapeHtml(host)}</span>`;
+      meta.innerHTML = `<span>${escapeHtml(host)}</span>`;
     } else {
       const ttlBadge = file.expiresAfter24h
         ? `<span class="file-ttl">${escapeHtml(getRemainingHoursLabel(file.modifiedAt))}</span>`
         : "";
-      meta.innerHTML = `<span class="file-folder">${escapeHtml(file.folder || "Allgemein")}</span><span>${formatBytes(file.size)}</span><span>${formatDate(file.modifiedAt)}</span>${ttlBadge}`;
+      meta.innerHTML = `<span>${formatBytes(file.size)}</span><span>${formatDate(file.modifiedAt)}</span>${ttlBadge}`;
     }
 
     info.append(name, meta);
@@ -447,7 +425,6 @@ async function loadManifest(portalCode = "") {
 
   state.files = [...linkItems, ...releaseFiles, ...staticFiles];
   state.generatedAt = releaseFiles[0]?.modifiedAt || linkItems[0]?.modifiedAt || generatedAt;
-  renderCategories();
   renderFiles();
 }
 
@@ -765,7 +742,7 @@ async function unlockPortal(code, sbClient = null, room = "general") {
     document.addEventListener("visibilitychange", () => {
       if (!document.hidden) verifyActive();
     });
-    setInterval(verifyActive, 60000);
+    setInterval(verifyActive, 300000);
   }
 }
 

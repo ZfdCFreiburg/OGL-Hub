@@ -2,7 +2,7 @@ name: Cleanup Expired Hub Files (24h)
 
 on:
   schedule:
-    - cron: "0 * * * *"
+    - cron: "0 */6 * * *"
   workflow_dispatch:
 
 permissions:
