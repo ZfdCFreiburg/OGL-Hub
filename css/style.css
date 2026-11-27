@@ -1865,6 +1865,23 @@ body.chat-standalone .chat-chevron {
   line-height: 1.35;
 }
 
+.upload-info-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 14px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.upload-info-note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
 /* Storage Bar */
 .storage-header {
   display: flex;
