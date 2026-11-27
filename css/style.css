@@ -1534,6 +1534,8 @@ body.chat-standalone .chat-chevron {
 
 /* Admin Page */
 .admin-card {
+  display: flex;
+  flex-direction: column;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -1869,7 +1871,7 @@ body.chat-standalone .chat-chevron {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  margin: 14px 0 0;
+  margin: auto 0 0;
   padding-top: 12px;
   border-top: 1px solid var(--border);
   font-size: 0.8rem;
